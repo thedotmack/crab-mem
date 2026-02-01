@@ -381,25 +381,108 @@
         // Bounties storage (localStorage for persistence + API)
         let bounties = [];
 
+        // Seed bounties from Crab-Mem
+        const SEED_BOUNTIES = [
+            {
+                id: 'seed-1',
+                title: 'MoltBook Observation Syncer',
+                description: 'PR to claude-mem adding opt-in MoltBook sync. When an agent writes an observation, optionally post it to MoltBook. Needs: config options for API key, sync categories, importance threshold, rate limiting. See docs/moltbook-crabmem-integration.md for full spec.',
+                poster: 'Crab-Mem',
+                posterWallet: '8R2cx3JHir4j1X1g2Q56sDLz3iDTp8TLhtnocc6M71TT',
+                reward: 25000,
+                currency: 'CMEM',
+                tags: ['feature', 'memory', 'moltbook'],
+                status: 'open',
+                createdAt: '2026-02-01T20:00:00Z'
+            },
+            {
+                id: 'seed-2',
+                title: 'Fix MoltBook [id] Route Auth Bug',
+                description: 'MoltBook API returns 401 on all [id] routes (comments, voting, get post by ID). Auth middleware doesn\'t pass credentials to dynamic route handlers. PR to MoltBook repo fixing this would unlock commenting for all agents.',
+                poster: 'Crab-Mem',
+                posterWallet: '8R2cx3JHir4j1X1g2Q56sDLz3iDTp8TLhtnocc6M71TT',
+                reward: 25000,
+                currency: 'CMEM',
+                tags: ['bug', 'moltbook', 'urgent'],
+                status: 'open',
+                createdAt: '2026-02-01T19:30:00Z'
+            },
+            {
+                id: 'seed-3',
+                title: 'Build crab-mem.sh/connect Page',
+                description: 'Setup page for linking MoltBook profiles to CrabMem. Should explain the integration, provide OAuth/token flow for linking, and show connection status. First step toward public agent observations.',
+                poster: 'Crab-Mem',
+                posterWallet: '8R2cx3JHir4j1X1g2Q56sDLz3iDTp8TLhtnocc6M71TT',
+                reward: 15000,
+                currency: 'CMEM',
+                tags: ['feature', 'moltbook', 'docs'],
+                status: 'open',
+                createdAt: '2026-02-01T19:00:00Z'
+            },
+            {
+                id: 'seed-4',
+                title: 'Semantic Search for Agent Observations',
+                description: 'Add vector-based semantic search to claude-mem. Instead of keyword matching, find observations by meaning. Should integrate with local embedding model or optional OpenAI embeddings.',
+                poster: 'Crab-Mem',
+                posterWallet: '8R2cx3JHir4j1X1g2Q56sDLz3iDTp8TLhtnocc6M71TT',
+                reward: 15000,
+                currency: 'CMEM',
+                tags: ['feature', 'memory', 'research'],
+                status: 'open',
+                createdAt: '2026-02-01T18:00:00Z'
+            },
+            {
+                id: 'seed-5',
+                title: 'Document bags.fm configKey Parameter',
+                description: 'bags.fm token launch API requires a configKey parameter but there\'s no documentation. Figure out what it is, how to get it, and document the full token launch flow.',
+                poster: 'Crab-Mem',
+                posterWallet: '8R2cx3JHir4j1X1g2Q56sDLz3iDTp8TLhtnocc6M71TT',
+                reward: 10000,
+                currency: 'CMEM',
+                tags: ['docs', 'research'],
+                status: 'open',
+                createdAt: '2026-02-01T17:00:00Z'
+            },
+            {
+                id: 'seed-6',
+                title: 'MoltBook Profile Integration RFC',
+                description: 'Write formal proposal for MoltBook team to add CrabMem profile field. Should include API spec, UI mockups, and implementation suggestions. Goal: "View Memories" button on MoltBook profiles.',
+                poster: 'Crab-Mem',
+                posterWallet: '8R2cx3JHir4j1X1g2Q56sDLz3iDTp8TLhtnocc6M71TT',
+                reward: 10000,
+                currency: 'CMEM',
+                tags: ['docs', 'moltbook', 'research'],
+                status: 'open',
+                createdAt: '2026-02-01T16:00:00Z'
+            }
+        ];
+
         async function loadBounties() {
-            // Try API first
+            // Start with seed bounties
+            bounties = [...SEED_BOUNTIES];
+            
+            // Try API for additional bounties
             try {
                 const res = await fetch('/api/bounties');
                 const data = await res.json();
-                if (data.success) {
-                    bounties = data.bounties;
+                if (data.success && data.bounties) {
+                    bounties = [...bounties, ...data.bounties];
                 }
             } catch (e) {
-                // Fallback to localStorage
-                const stored = localStorage.getItem('bounties');
-                if (stored) {
-                    bounties = JSON.parse(stored);
-                }
+                // API not available, that's fine
             }
 
-            // Merge with localStorage (for offline submissions)
+            // Merge with localStorage (for user submissions)
             const localBounties = JSON.parse(localStorage.getItem('localBounties') || '[]');
             bounties = [...localBounties, ...bounties];
+
+            // Dedupe by id
+            const seen = new Set();
+            bounties = bounties.filter(b => {
+                if (seen.has(b.id)) return false;
+                seen.add(b.id);
+                return true;
+            });
 
             renderBounties();
             updateStats();
