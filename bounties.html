@@ -609,8 +609,8 @@
             mint: '2dpWL2k6q4Fjd5ZV3T9sxh3uU6atCUdHgiJ7moNFBAGS',
             symbol: 'CMEM',
             decimals: 9,
-            // Pre-launch placeholder price (update once live)
-            fallbackPrice: 0.0001,
+            // Fallback only if all APIs fail
+            fallbackPrice: 0.000003,
             treasury: 2000000
         };
 
@@ -653,7 +653,17 @@
         async function fetchDexScreenerPrice() {
             const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_CONFIG.mint}`);
             const data = await res.json();
-            return parseFloat(data.pairs?.[0]?.priceUsd);
+            const pair = data.pairs?.[0];
+            if (pair) {
+                // Store extra data for display
+                window.tokenData = {
+                    marketCap: pair.marketCap || pair.fdv,
+                    volume24h: pair.volume?.h24,
+                    priceChange24h: pair.priceChange?.h24,
+                    dexUrl: pair.url
+                };
+            }
+            return parseFloat(pair?.priceUsd);
         }
 
         function formatUSD(amount) {
@@ -680,12 +690,26 @@
             
             // Update price change badge
             const changeEl = document.getElementById('price-change');
-            if (source === 'Pre-launch estimate') {
+            if (window.tokenData?.priceChange24h !== undefined) {
+                const change = window.tokenData.priceChange24h;
+                changeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+                changeEl.className = `price-change ${change >= 0 ? 'up' : 'down'}`;
+            } else if (source === 'Pre-launch estimate') {
                 changeEl.textContent = 'PRE-LAUNCH';
                 changeEl.className = 'price-change pending';
             } else {
                 changeEl.textContent = 'LIVE';
                 changeEl.className = 'price-change up';
+            }
+
+            // Update market data if available
+            if (window.tokenData) {
+                if (window.tokenData.marketCap) {
+                    document.getElementById('market-cap').textContent = formatUSD(window.tokenData.marketCap);
+                }
+                if (window.tokenData.volume24h) {
+                    document.getElementById('volume').textContent = formatUSD(window.tokenData.volume24h);
+                }
             }
 
             // Update treasury value
