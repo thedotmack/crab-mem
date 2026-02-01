@@ -615,26 +615,29 @@
             treasury: 2000000
         };
 
-        // Price fetching from multiple sources
+        // Price fetching - DexScreener primary (most reliable for this token)
         async function fetchPrice() {
-            const sources = [
-                fetchJupiterPrice,
-                fetchBirdeyePrice,
-                fetchDexScreenerPrice
-            ];
-
-            for (const fetchFn of sources) {
-                try {
-                    const price = await fetchFn();
-                    if (price && price > 0) {
-                        return { price, source: fetchFn.name.replace('fetch', '').replace('Price', '') };
-                    }
-                } catch (e) {
-                    console.log(`${fetchFn.name} failed:`, e.message);
+            try {
+                // DexScreener first - has best data for CMEM
+                const price = await fetchDexScreenerPrice();
+                if (price && price > 0) {
+                    return { price, source: 'DexScreener' };
                 }
+            } catch (e) {
+                console.error('DexScreener failed:', e);
             }
 
-            return { price: TOKEN_CONFIG.fallbackPrice, source: 'Pre-launch estimate' };
+            // Fallback to Jupiter
+            try {
+                const price = await fetchJupiterPrice();
+                if (price && price > 0) {
+                    return { price, source: 'Jupiter' };
+                }
+            } catch (e) {
+                console.error('Jupiter failed:', e);
+            }
+
+            return { price: TOKEN_CONFIG.fallbackPrice, source: 'Fallback' };
         }
 
         async function fetchJupiterPrice() {
@@ -676,8 +679,18 @@
         }
 
         function formatPrice(price) {
-            if (price < 0.00001) return `$${price.toFixed(8)}`;
-            if (price < 0.001) return `$${price.toFixed(6)}`;
+            // Format like DexScreener: $0.0₃12287 means $0.000 + 12287
+            if (price < 0.0001) {
+                const str = price.toFixed(10);
+                const match = str.match(/^0\.(0+)(\d+)/);
+                if (match) {
+                    const zeros = match[1].length;
+                    const digits = match[2].substring(0, 5);
+                    const subscript = ['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'][zeros] || zeros;
+                    return `$0.0${subscript}${digits}`;
+                }
+            }
+            if (price < 0.01) return `$${price.toFixed(6)}`;
             if (price < 1) return `$${price.toFixed(4)}`;
             return `$${price.toFixed(2)}`;
         }
