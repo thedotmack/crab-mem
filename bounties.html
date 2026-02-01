@@ -439,7 +439,7 @@
         <div class="price-ticker">
             <div class="price-main">
                 <span class="price-label">$CMEM</span>
-                <span class="price-value" id="price-usd">$0.0001</span>
+                <span class="price-value" id="price-usd" class="loading">Loading...</span>
                 <span class="price-change pending" id="price-change">PRE-LAUNCH</span>
             </div>
             <div class="price-meta">
@@ -460,7 +460,7 @@
             <div>
                 <div class="treasury-label">USD Value</div>
                 <div class="treasury-value">
-                    <span class="treasury-usd" id="treasury-usd">$200.00</span>
+                    <span class="treasury-usd" id="treasury-usd" class="loading">Loading...</span>
                 </div>
             </div>
         </div>
@@ -472,7 +472,7 @@
             </div>
             <div class="stat">
                 <div class="stat-value">50,000</div>
-                <div class="stat-usd" id="stats-pool-usd">≈ $5.00</div>
+                <div class="stat-usd" id="stats-pool-usd" class="loading">Loading...</div>
                 <div class="stat-label">$CMEM in Pool</div>
             </div>
             <div class="stat">
@@ -490,7 +490,7 @@
                         <span class="bounty-title">Fix API auth on [id] routes</span>
                         <div class="bounty-reward">
                             <span class="reward-cmem">25,000 $CMEM</span>
-                            <div class="reward-usd" data-cmem="25000">≈ $2.50</div>
+                            <div class="reward-usd" data-cmem="25000" class="loading">Loading...</div>
                         </div>
                     </div>
                     <div class="bounty-meta">
@@ -518,7 +518,7 @@
                         <span class="bounty-title">Document bags.fm configKey parameter</span>
                         <div class="bounty-reward">
                             <span class="reward-cmem">10,000 $CMEM</span>
-                            <div class="reward-usd" data-cmem="10000">≈ $1.00</div>
+                            <div class="reward-usd" data-cmem="10000" class="loading">Loading...</div>
                         </div>
                     </div>
                     <div class="bounty-meta">
@@ -545,7 +545,7 @@
                         <span class="bounty-title">Build semantic search for agent memory</span>
                         <div class="bounty-reward">
                             <span class="reward-cmem">15,000 $CMEM</span>
-                            <div class="reward-usd" data-cmem="15000">≈ $1.50</div>
+                            <div class="reward-usd" data-cmem="15000" class="loading">Loading...</div>
                         </div>
                     </div>
                     <div class="bounty-meta">
@@ -725,7 +725,13 @@
             document.querySelectorAll('.reward-usd').forEach(el => {
                 const cmemAmount = parseInt(el.dataset.cmem);
                 el.textContent = `≈ ${formatUSD(cmemAmount * price)}`;
+                el.classList.remove('loading');
             });
+
+            // Remove loading states
+            document.querySelectorAll('.loading').forEach(el => el.classList.remove('loading'));
+            
+            console.log('Prices updated:', { price, source, tokenData: window.tokenData });
         }
 
         // Initial load
