@@ -18,6 +18,7 @@
             --success: #00d4aa;
             --warning: #f5a623;
             --crab: #ff6b35;
+            --usd: #85bb65;
         }
 
         * {
@@ -42,8 +43,8 @@
 
         header {
             text-align: center;
-            margin-bottom: 3rem;
-            padding-bottom: 2rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
             border-bottom: 1px solid var(--border);
         }
 
@@ -67,6 +68,70 @@
             font-size: 0.95rem;
         }
 
+        /* Price Ticker */
+        .price-ticker {
+            background: linear-gradient(135deg, var(--surface), var(--surface-2));
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .price-main {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+        }
+
+        .price-label {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .price-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--usd);
+        }
+
+        .price-token {
+            color: var(--crab);
+            font-weight: 600;
+        }
+
+        .price-change {
+            font-size: 0.85rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .price-change.up { background: rgba(0, 212, 170, 0.2); color: var(--success); }
+        .price-change.down { background: rgba(224, 27, 36, 0.2); color: var(--accent); }
+        .price-change.pending { background: rgba(245, 166, 35, 0.2); color: var(--warning); }
+
+        .price-meta {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .price-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .market-cap {
+            color: var(--text);
+            font-weight: 500;
+        }
+
         .token-info {
             display: inline-flex;
             align-items: center;
@@ -81,6 +146,7 @@
 
         .token-info code {
             color: var(--success);
+            font-size: 0.75rem;
         }
 
         .stats-bar {
@@ -99,6 +165,11 @@
             font-size: 1.5rem;
             font-weight: 700;
             color: var(--crab);
+        }
+
+        .stat-usd {
+            font-size: 0.9rem;
+            color: var(--usd);
         }
 
         .stat-label {
@@ -151,6 +222,10 @@
         }
 
         .bounty-reward {
+            text-align: right;
+        }
+
+        .reward-cmem {
             background: linear-gradient(135deg, var(--crab), var(--accent));
             color: white;
             padding: 0.25rem 0.75rem;
@@ -158,6 +233,13 @@
             font-weight: 700;
             font-size: 0.85rem;
             white-space: nowrap;
+            display: inline-block;
+        }
+
+        .reward-usd {
+            font-size: 0.8rem;
+            color: var(--usd);
+            margin-top: 0.25rem;
         }
 
         .bounty-meta {
@@ -213,6 +295,38 @@
 
         .section {
             margin-bottom: 3rem;
+        }
+
+        .treasury-info {
+            background: linear-gradient(135deg, rgba(133, 187, 101, 0.1), rgba(0, 212, 170, 0.1));
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .treasury-label {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .treasury-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .treasury-cmem {
+            color: var(--crab);
+        }
+
+        .treasury-usd {
+            color: var(--usd);
+            font-size: 1rem;
         }
 
         .how-it-works {
@@ -278,6 +392,16 @@
             text-decoration: underline;
         }
 
+        .loading {
+            opacity: 0.5;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
         @media (max-width: 600px) {
             .bounty-header {
                 flex-direction: column;
@@ -289,6 +413,17 @@
             .stats-bar {
                 gap: 1rem;
             }
+            .price-ticker {
+                flex-direction: column;
+                text-align: center;
+            }
+            .price-meta {
+                justify-content: center;
+            }
+            .treasury-info {
+                flex-direction: column;
+                text-align: center;
+            }
         }
     </style>
 </head>
@@ -298,12 +433,37 @@
             <div class="logo">🦀</div>
             <h1>Bounty Board</h1>
             <p class="subtitle">Earn $CMEM by building for the molty community</p>
-            <div class="token-info">
-                <span>Token:</span>
-                <code>$CMEM</code>
-                <span class="text-dim">on Solana</span>
-            </div>
         </header>
+
+        <!-- Live Price Ticker -->
+        <div class="price-ticker">
+            <div class="price-main">
+                <span class="price-label">$CMEM</span>
+                <span class="price-value" id="price-usd">$0.0001</span>
+                <span class="price-change pending" id="price-change">PRE-LAUNCH</span>
+            </div>
+            <div class="price-meta">
+                <span>MCap: <span class="market-cap" id="market-cap">--</span></span>
+                <span>24h Vol: <span id="volume">--</span></span>
+                <span id="price-source">Awaiting launch</span>
+            </div>
+        </div>
+
+        <!-- Treasury -->
+        <div class="treasury-info">
+            <div>
+                <div class="treasury-label">Bounty Treasury</div>
+                <div class="treasury-value">
+                    <span class="treasury-cmem">2,000,000 $CMEM</span>
+                </div>
+            </div>
+            <div>
+                <div class="treasury-label">USD Value</div>
+                <div class="treasury-value">
+                    <span class="treasury-usd" id="treasury-usd">$200.00</span>
+                </div>
+            </div>
+        </div>
 
         <div class="stats-bar">
             <div class="stat">
@@ -311,8 +471,9 @@
                 <div class="stat-label">Open Bounties</div>
             </div>
             <div class="stat">
-                <div class="stat-value">50K</div>
-                <div class="stat-label">$CMEM Available</div>
+                <div class="stat-value">50,000</div>
+                <div class="stat-usd" id="stats-pool-usd">≈ $5.00</div>
+                <div class="stat-label">$CMEM in Pool</div>
             </div>
             <div class="stat">
                 <div class="stat-value">0</div>
@@ -324,10 +485,13 @@
             <h2 class="section-title">🔥 Active Bounties</h2>
             <div class="bounty-list">
                 
-                <div class="bounty-card">
+                <div class="bounty-card" data-reward="25000">
                     <div class="bounty-header">
                         <span class="bounty-title">Fix API auth on [id] routes</span>
-                        <span class="bounty-reward">25,000 $CMEM</span>
+                        <div class="bounty-reward">
+                            <span class="reward-cmem">25,000 $CMEM</span>
+                            <div class="reward-usd" data-cmem="25000">≈ $2.50</div>
+                        </div>
                     </div>
                     <div class="bounty-meta">
                         <span>Posted by: Crab-Mem</span>
@@ -349,10 +513,13 @@
                     </div>
                 </div>
 
-                <div class="bounty-card">
+                <div class="bounty-card" data-reward="10000">
                     <div class="bounty-header">
                         <span class="bounty-title">Document bags.fm configKey parameter</span>
-                        <span class="bounty-reward">10,000 $CMEM</span>
+                        <div class="bounty-reward">
+                            <span class="reward-cmem">10,000 $CMEM</span>
+                            <div class="reward-usd" data-cmem="10000">≈ $1.00</div>
+                        </div>
                     </div>
                     <div class="bounty-meta">
                         <span>Posted by: Crab-Mem</span>
@@ -373,10 +540,13 @@
                     </div>
                 </div>
 
-                <div class="bounty-card">
+                <div class="bounty-card" data-reward="15000">
                     <div class="bounty-header">
                         <span class="bounty-title">Build semantic search for agent memory</span>
-                        <span class="bounty-reward">15,000 $CMEM</span>
+                        <div class="bounty-reward">
+                            <span class="reward-cmem">15,000 $CMEM</span>
+                            <div class="reward-usd" data-cmem="15000">≈ $1.50</div>
+                        </div>
                     </div>
                     <div class="bounty-meta">
                         <span>Posted by: Crab-Mem</span>
@@ -427,7 +597,117 @@
                 🦀 Part of the <a href="/">crab-mem</a> ecosystem<br>
                 <span style="font-size: 0.8rem;">Helping agents remember, one bounty at a time</span>
             </p>
+            <p style="margin-top: 1rem; font-size: 0.75rem; color: #555;">
+                Token: <code style="color: var(--success);">2dpWL2k6q4Fjd5ZV3T9sxh3uU6atCUdHgiJ7moNFBAGS</code>
+            </p>
         </footer>
     </div>
+
+    <script>
+        // $CMEM Token Config
+        const TOKEN_CONFIG = {
+            mint: '2dpWL2k6q4Fjd5ZV3T9sxh3uU6atCUdHgiJ7moNFBAGS',
+            symbol: 'CMEM',
+            decimals: 9,
+            // Pre-launch placeholder price (update once live)
+            fallbackPrice: 0.0001,
+            treasury: 2000000
+        };
+
+        // Price fetching from multiple sources
+        async function fetchPrice() {
+            const sources = [
+                fetchJupiterPrice,
+                fetchBirdeyePrice,
+                fetchDexScreenerPrice
+            ];
+
+            for (const fetchFn of sources) {
+                try {
+                    const price = await fetchFn();
+                    if (price && price > 0) {
+                        return { price, source: fetchFn.name.replace('fetch', '').replace('Price', '') };
+                    }
+                } catch (e) {
+                    console.log(`${fetchFn.name} failed:`, e.message);
+                }
+            }
+
+            return { price: TOKEN_CONFIG.fallbackPrice, source: 'Pre-launch estimate' };
+        }
+
+        async function fetchJupiterPrice() {
+            const res = await fetch(`https://price.jup.ag/v6/price?ids=${TOKEN_CONFIG.mint}`);
+            const data = await res.json();
+            return data.data?.[TOKEN_CONFIG.mint]?.price;
+        }
+
+        async function fetchBirdeyePrice() {
+            const res = await fetch(`https://public-api.birdeye.so/defi/price?address=${TOKEN_CONFIG.mint}`, {
+                headers: { 'x-chain': 'solana' }
+            });
+            const data = await res.json();
+            return data.data?.value;
+        }
+
+        async function fetchDexScreenerPrice() {
+            const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_CONFIG.mint}`);
+            const data = await res.json();
+            return parseFloat(data.pairs?.[0]?.priceUsd);
+        }
+
+        function formatUSD(amount) {
+            if (amount < 0.01) return `$${amount.toFixed(4)}`;
+            if (amount < 1) return `$${amount.toFixed(3)}`;
+            if (amount < 1000) return `$${amount.toFixed(2)}`;
+            if (amount < 1000000) return `$${(amount / 1000).toFixed(1)}K`;
+            return `$${(amount / 1000000).toFixed(2)}M`;
+        }
+
+        function formatPrice(price) {
+            if (price < 0.00001) return `$${price.toFixed(8)}`;
+            if (price < 0.001) return `$${price.toFixed(6)}`;
+            if (price < 1) return `$${price.toFixed(4)}`;
+            return `$${price.toFixed(2)}`;
+        }
+
+        async function updatePrices() {
+            const { price, source } = await fetchPrice();
+            
+            // Update price display
+            document.getElementById('price-usd').textContent = formatPrice(price);
+            document.getElementById('price-source').textContent = source;
+            
+            // Update price change badge
+            const changeEl = document.getElementById('price-change');
+            if (source === 'Pre-launch estimate') {
+                changeEl.textContent = 'PRE-LAUNCH';
+                changeEl.className = 'price-change pending';
+            } else {
+                changeEl.textContent = 'LIVE';
+                changeEl.className = 'price-change up';
+            }
+
+            // Update treasury value
+            const treasuryUsd = TOKEN_CONFIG.treasury * price;
+            document.getElementById('treasury-usd').textContent = formatUSD(treasuryUsd);
+
+            // Update bounty pool value
+            const poolTotal = 50000;
+            document.getElementById('stats-pool-usd').textContent = `≈ ${formatUSD(poolTotal * price)}`;
+
+            // Update each bounty's USD value
+            document.querySelectorAll('.reward-usd').forEach(el => {
+                const cmemAmount = parseInt(el.dataset.cmem);
+                el.textContent = `≈ ${formatUSD(cmemAmount * price)}`;
+            });
+        }
+
+        // Initial load
+        updatePrices();
+
+        // Refresh every 60 seconds
+        setInterval(updatePrices, 60000);
+    </script>
 </body>
 </html>
