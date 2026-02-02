@@ -132,7 +132,7 @@ export default function (api: OpenClawPluginApi) {
       const configPath = join(homedir(), ".openclaw/openclaw.json");
       if (existsSync(configPath)) {
         const cfg = JSON.parse(require("fs").readFileSync(configPath, "utf-8"));
-        workspaceDir = cfg.workspace || workspaceDir;
+        workspaceDir = cfg.agents?.defaults?.workspace || cfg.workspace || workspaceDir;
       }
     } catch {}
   }
