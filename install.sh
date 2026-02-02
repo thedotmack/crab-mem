@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 #
-#  🦀 THE CRAB MEMORY INSTALLER 🦀
+#  🦀 CRAB-MEM INSTALLER (by Claude-Mem.ai) 🦀
 #  
-#  Installs claude-mem plugin to ~/.openclaw/plugins/
+#  Installs Crab-Mem plugin to ~/.openclaw/plugins/
 #
 
 set -e
+
+CRAB_MEM_VERSION="1.1.0"
 
 CRAB="🦀"
 GREEN='\033[0;32m'
@@ -15,7 +17,8 @@ NC='\033[0m'
 
 echo ""
 echo -e "${GOLD}═══════════════════════════════════════════${NC}"
-echo -e "${CRAB}  ${GOLD}CRAB MEMORY INSTALLER${NC}  ${CRAB}"
+echo -e "${CRAB}  ${GOLD}CRAB-MEM INSTALLER${NC}  ${CRAB}"
+echo -e "${GOLD}    by Claude-Mem.ai${NC}"
 echo -e "${GOLD}═══════════════════════════════════════════${NC}"
 echo ""
 
@@ -26,11 +29,60 @@ if ! command -v bun &> /dev/null; then
     export PATH="$HOME/.bun/bin:$PATH"
 fi
 
+# Install claude-mem worker via Claude CLI
+if command -v claude &> /dev/null; then
+    echo "[${CRAB}] Installing claude-mem worker..."
+    if claude plugins add thedotmack/claude-mem; then
+        echo -e "${GREEN}[✓]${NC} Worker installed via Claude CLI"
+    else
+        echo -e "${GOLD}[!]${NC} Worker install returned non-zero (may already be installed)"
+    fi
+else
+    echo -e "${GOLD}[!]${NC} Claude CLI not found"
+    echo "    The worker provides memory persistence. To install it:"
+    echo "    1. Install Claude CLI, then run: claude plugins add thedotmack/claude-mem"
+    echo "    2. Or configure OpenRouter provider (advanced)"
+fi
+
+# Provider configuration
+echo ""
+echo "Which LLM provider for memory processing?"
+echo "  1) Claude (default - requires Claude CLI logged in)"
+echo "  2) OpenRouter (free tier available!)"
+echo "  3) Gemini"
+read -p "Enter choice [1]: " PROVIDER_CHOICE
+
+case "$PROVIDER_CHOICE" in
+  2)
+    PROVIDER="openrouter"
+    read -p "OpenRouter API key (get free at openrouter.ai/keys): " OR_KEY
+    ;;
+  3)
+    PROVIDER="gemini"
+    read -p "Gemini API key: " GEMINI_KEY
+    ;;
+  *)
+    PROVIDER="claude"
+    ;;
+esac
+
+# Write settings
+mkdir -p ~/.claude-mem
+cat > ~/.claude-mem/settings.json << SETTINGS
+{
+  "CLAUDE_MEM_PROVIDER": "$PROVIDER",
+  "CLAUDE_MEM_OPENROUTER_API_KEY": "${OR_KEY:-}",
+  "CLAUDE_MEM_GEMINI_API_KEY": "${GEMINI_KEY:-}",
+  "CLAUDE_MEM_OPENROUTER_MODEL": "xiaomi/mimo-v2-flash:free"
+}
+SETTINGS
+echo "[${CRAB}] Settings saved to ~/.claude-mem/settings.json"
+
 # Create plugins directory
 PLUGIN_DIR="$HOME/.openclaw/plugins/memory-claudemem"
 mkdir -p "$PLUGIN_DIR"
 
-echo "[${CRAB}] Installing to $PLUGIN_DIR"
+echo "[${CRAB}] Installing Crab-Mem plugin to $PLUGIN_DIR"
 
 # Write the plugin
 cat > "$PLUGIN_DIR/index.ts" << 'PLUGIN'
@@ -241,8 +293,8 @@ PLUGIN
 cat > "$PLUGIN_DIR/openclaw.plugin.json" << 'MANIFEST'
 {
   "id": "memory-claudemem",
-  "name": "Memory (Claude-Mem)",
-  "description": "Persistent memory via claude-mem 🦀",
+  "name": "Crab-Mem (by Claude-Mem.ai)",
+  "description": "Crab-Mem 🦀 - Persistent memory for OpenClaw via claude-mem",
   "kind": "memory",
   "version": "1.0.0"
 }
@@ -252,13 +304,16 @@ cat > "$PLUGIN_DIR/package.json" << 'PKG'
 {"name": "memory-claudemem", "version": "1.0.0", "main": "index.ts"}
 PKG
 
-echo -e "${GREEN}[✓]${NC} Plugin installed to $PLUGIN_DIR"
+# Save version for update checking
+echo "$CRAB_MEM_VERSION" > "$PLUGIN_DIR/version.txt"
+
+echo -e "${GREEN}[✓]${NC} Crab-Mem v$CRAB_MEM_VERSION installed to $PLUGIN_DIR"
 
 # Install skills
 SKILLS_DIR="$HOME/.openclaw/workspace/skills"
 mkdir -p "$SKILLS_DIR/make-plan" "$SKILLS_DIR/do-plan"
 
-echo "[${CRAB}] Installing skills to $SKILLS_DIR"
+echo "[${CRAB}] Installing Crab-Mem skills to $SKILLS_DIR"
 
 # make-plan skill
 cat > "$SKILLS_DIR/make-plan/SKILL.md" << 'SKILL_MAKEPLAN'
@@ -446,7 +501,7 @@ Keep a running status in the conversation:
 ```
 SKILL_DOPLAN
 
-echo -e "${GREEN}[✓]${NC} Skills installed: make-plan, do-plan"
+echo -e "${GREEN}[✓]${NC} Crab-Mem skills installed: make-plan, do-plan"
 
 echo ""
 echo -e "${CYAN}Add to ~/.openclaw/openclaw.json:${NC}"
