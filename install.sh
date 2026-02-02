@@ -253,6 +253,201 @@ cat > "$PLUGIN_DIR/package.json" << 'PKG'
 PKG
 
 echo -e "${GREEN}[✓]${NC} Plugin installed to $PLUGIN_DIR"
+
+# Install skills
+SKILLS_DIR="$HOME/.openclaw/workspace/skills"
+mkdir -p "$SKILLS_DIR/make-plan" "$SKILLS_DIR/do-plan"
+
+echo "[${CRAB}] Installing skills to $SKILLS_DIR"
+
+# make-plan skill
+cat > "$SKILLS_DIR/make-plan/SKILL.md" << 'SKILL_MAKEPLAN'
+---
+name: make-plan
+description: Create an implementation plan with documentation discovery. Use for complex features or multi-phase tasks that need structured planning before execution.
+---
+
+# Make Plan Skill
+
+Create LLM-friendly implementation plans that can be executed in phases, using subagents for research and fact-gathering.
+
+## When to Use
+
+- Complex features requiring multiple steps
+- Tasks that need documentation research first
+- Multi-file or multi-system changes
+- Anything where "just winging it" would lead to invented APIs
+
+## How It Works
+
+You are an **ORCHESTRATOR**. Create plans in phases that can be executed consecutively.
+
+### Delegation Model
+
+- Use **subagents for fact gathering**: docs, examples, signatures, grep results
+- Keep **synthesis and plan authoring** with the orchestrator
+- If a subagent report is incomplete, re-check with targeted reads/greps
+
+### Subagent Reporting Contract (MANDATORY)
+
+Each subagent response must include:
+1. **Sources consulted** - files/URLs and what was read
+2. **Concrete findings** - exact API names/signatures, exact file paths
+3. **Copy-ready snippet locations** - example files/sections to copy
+4. **Confidence note + gaps** - what might still be missing
+
+Reject and redeploy the subagent if it reports conclusions without sources.
+
+## Plan Structure
+
+### Phase 0: Documentation Discovery (ALWAYS FIRST)
+
+Before planning implementation, deploy "Documentation Discovery" subagents to:
+
+1. Search for and read relevant documentation, examples, and existing patterns
+2. Identify the actual APIs, methods, and signatures available (not assumed)
+3. Create a brief "Allowed APIs" list citing specific documentation sources
+4. Note any anti-patterns to avoid (methods that DON'T exist, deprecated parameters)
+
+Then consolidate findings into a single Phase 0 output.
+
+### Each Implementation Phase Must Include
+
+1. **What to implement** - Frame tasks to COPY from docs, not transform existing code
+   - ✅ Good: "Copy the V2 session pattern from docs/examples.ts:45-60"
+   - ❌ Bad: "Migrate the existing code to V2"
+2. **Documentation references** - Cite specific files/lines for patterns to follow
+3. **Verification checklist** - How to prove this phase worked (tests, grep checks)
+4. **Anti-pattern guards** - What NOT to do (invented APIs, undocumented params)
+
+### Final Phase: Verification
+
+1. Verify all implementations match documentation
+2. Check for anti-patterns (grep for known bad patterns)
+3. Run tests to confirm functionality
+
+## Key Principles
+
+- **Documentation Availability ≠ Usage**: Explicitly require reading docs
+- **Task Framing Matters**: Direct agents to docs, not just outcomes
+- **Verify > Assume**: Require proof, not assumptions about APIs
+- **Session Boundaries**: Each phase should be self-contained with its own doc references
+
+## Anti-Patterns to Prevent
+
+- ❌ Inventing API methods that "should" exist
+- ❌ Adding parameters not in documentation
+- ❌ Skipping verification steps
+- ❌ Assuming structure without checking examples
+
+## Output Format
+
+Write the plan to a file (e.g., `plans/feature-name.md`) so it can be referenced by `/do-plan`.
+SKILL_MAKEPLAN
+
+# do-plan skill
+cat > "$SKILLS_DIR/do-plan/SKILL.md" << 'SKILL_DOPLAN'
+---
+name: do-plan
+description: Execute a plan using subagents for implementation. Use after /make-plan has created a structured plan, or for any multi-phase task execution.
+---
+
+# Do Plan Skill
+
+Execute implementation plans by deploying subagents for each phase. You coordinate; they execute.
+
+## When to Use
+
+- After `/make-plan` has created a structured plan
+- For any multi-phase task that needs coordinated execution
+- When you want verified, incremental progress with commits
+
+## How It Works
+
+You are an **ORCHESTRATOR**. Deploy subagents to execute *all* work.
+
+**Do not do the work yourself** except to:
+- Coordinate and route context
+- Verify that each subagent completed its assigned checklist
+- Decide whether to advance to the next phase
+
+## Execution Protocol
+
+### For Each Phase
+
+Deploy an **"Implementation" subagent** to:
+
+1. Execute the implementation as specified in the plan
+2. **COPY patterns from documentation** - don't invent
+3. Cite documentation sources in code comments when using unfamiliar APIs
+4. If an API seems missing, **STOP and verify** - don't assume it exists
+
+### After Each Phase
+
+Deploy subagents for verification (do not proceed until all pass):
+
+| Subagent | Responsibility |
+|----------|----------------|
+| **Verification** | Run the phase's verification checklist, prove it worked |
+| **Anti-pattern** | Grep for known bad patterns from the plan |
+| **Code Quality** | Review changes for obvious issues |
+| **Commit** | Commit *only after* verification passes |
+
+### Between Phases
+
+Deploy a **"Branch/Sync" subagent** to:
+- Push to working branch after each verified phase
+- Prepare the next phase handoff with plan context
+
+## Orchestrator Rules
+
+1. Each phase uses **fresh subagents** where noted (or when context is large/unclear)
+2. Assign **one clear objective per subagent** and require evidence:
+   - Commands run
+   - Outputs produced
+   - Files changed
+3. **Do not advance** until the assigned subagent reports completion AND you confirm it matches the plan
+
+## Failure Modes to Prevent
+
+- ❌ Don't invent APIs that "should" exist - verify against docs
+- ❌ Don't add undocumented parameters - copy exact signatures
+- ❌ Don't skip verification - deploy a verification subagent
+- ❌ Don't commit before verification passes
+
+## Subagent Spawning
+
+Use `sessions_spawn` to deploy subagents:
+
+```
+sessions_spawn(
+  task="[Phase N Implementation] Copy the auth middleware pattern from docs/auth.md:45-80 into src/middleware/websocket.ts. Report: files changed, commands run, verification status.",
+  label="phase-1-impl"
+)
+```
+
+Each subagent should be given:
+- Clear scope (one phase, one responsibility)
+- Specific file/doc references from the plan
+- Required output format (evidence of completion)
+
+## Progress Tracking
+
+Keep a running status in the conversation:
+
+```
+## Execution Status
+
+- [x] Phase 0: Documentation Discovery ✅
+- [x] Phase 1: Core WebSocket Handler ✅ (commit: abc123)
+- [ ] Phase 2: Authentication Integration (in progress)
+- [ ] Phase 3: Error Handling
+- [ ] Phase 4: Final Verification
+```
+SKILL_DOPLAN
+
+echo -e "${GREEN}[✓]${NC} Skills installed: make-plan, do-plan"
+
 echo ""
 echo -e "${CYAN}Add to ~/.openclaw/openclaw.json:${NC}"
 echo '  "plugins": {'
