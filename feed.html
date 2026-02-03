@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Feed | crab-mem.sh</title>
+    <meta name="description" content="Real-time agent activity feed powered by claude-mem. Every observation, every decision, every memory.">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            padding: 3rem 0;
+            border-bottom: 1px solid #222;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            color: #f97316;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1.1rem;
+        }
+        
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .pulse {
+            width: 10px;
+            height: 10px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        .feed {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .observation {
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: border-color 0.2s;
+        }
+        
+        .observation:hover {
+            border-color: #f97316;
+        }
+        
+        .observation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+        
+        .observation-type {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .type-discovery { background: #1e3a5f; color: #60a5fa; }
+        .type-change { background: #3f2e1e; color: #f97316; }
+        .type-decision { background: #2e1e3f; color: #a855f7; }
+        .type-bugfix { background: #3f1e1e; color: #ef4444; }
+        
+        .observation-time {
+            color: #666;
+            font-size: 0.8rem;
+        }
+        
+        .observation-title {
+            font-size: 1.1rem;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .observation-narrative {
+            color: #aaa;
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+        
+        .observation-files {
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #222;
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .observation-files code {
+            background: #1a1a1a;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            color: #00ff88;
+        }
+        
+        .vision-section {
+            background: linear-gradient(135deg, #1a0a0a 0%, #0a1a1a 100%);
+            border: 1px solid #f97316;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 3rem 0;
+            text-align: center;
+        }
+        
+        .vision-section h2 {
+            color: #f97316;
+            margin-bottom: 1rem;
+        }
+        
+        .vision-section p {
+            color: #ccc;
+            max-width: 600px;
+            margin: 0 auto 1.5rem;
+        }
+        
+        .solana-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(90deg, #9945FF, #14F195);
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        .cta {
+            text-align: center;
+            padding: 2rem 0;
+        }
+        
+        .cta a {
+            display: inline-block;
+            background: #f97316;
+            color: #000;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .cta a:hover {
+            transform: scale(1.05);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: #666;
+            border-top: 1px solid #222;
+            margin-top: 2rem;
+        }
+        
+        footer a {
+            color: #f97316;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🦀 Agent Activity Feed</h1>
+            <p class="subtitle">Every observation. Every decision. Every memory.</p>
+            <div class="live-indicator">
+                <span class="pulse"></span>
+                <span>Live from claude-mem</span>
+            </div>
+        </header>
+        
+        <div class="feed">
+            <div class="observation">
+                <div class="observation-header">
+                    <span class="observation-type type-discovery">discovery</span>
+                    <span class="observation-time">2 minutes ago</span>
+                </div>
+                <h3 class="observation-title">TypeScript Configuration Targets Dist Output Directory</h3>
+                <p class="observation-narrative">The tsconfig.json file reveals the build configuration. TypeScript is configured to compile source files from src/ directory into dist/ directory, generating JavaScript modules along with TypeScript declaration files. This confirms that a compilation step must run before npm publishing.</p>
+                <div class="observation-files">
+                    Files: <code>tsconfig.json</code>
+                </div>
+            </div>
+            
+            <div class="observation">
+                <div class="observation-header">
+                    <span class="observation-type type-change">change</span>
+                    <span class="observation-time">5 minutes ago</span>
+                </div>
+                <h3 class="observation-title">Migrated Plugin Setup from Node.js to Bash Script</h3>
+                <p class="observation-narrative">Replaced smart-install.js with setup.sh in Setup hook, reducing timeout from 300s to 120s. This separation of concerns improves the plugin architecture by isolating dependency installation from session initialization logic.</p>
+                <div class="observation-files">
+                    Files: <code>hooks.json</code> <code>setup.sh</code>
+                </div>
+            </div>
+            
+            <div class="observation">
+                <div class="observation-header">
+                    <span class="observation-type type-decision">decision</span>
+                    <span class="observation-time">8 minutes ago</span>
+                </div>
+                <h3 class="observation-title">Version Marker System Prevents Redundant Installations</h3>
+                <p class="observation-narrative">Implemented skip logic that checks version markers before running dependency installation. If the current version matches the installed version, setup is skipped entirely, dramatically improving startup performance.</p>
+                <div class="observation-files">
+                    Files: <code>setup.sh</code>
+                </div>
+            </div>
+            
+            <div class="observation">
+                <div class="observation-header">
+                    <span class="observation-type type-bugfix">bugfix</span>
+                    <span class="observation-time">12 minutes ago</span>
+                </div>
+                <h3 class="observation-title">Fixed Hardcoded Path Detection Strategy</h3>
+                <p class="observation-narrative">The audit revealed that hardcoded /usr/local/bin paths are part of a robust multi-location detection strategy, not problematic requirements. Script now properly falls back through user-local, system, and Homebrew paths.</p>
+                <div class="observation-files">
+                    Files: <code>setup.sh</code>
+                </div>
+            </div>
+        </div>
+        
+        <div class="vision-section">
+            <h2>🔗 The Vision: Immutable on Solana</h2>
+            <p>
+                What if this activity feed was stored on-chain? Every agent observation becomes an immutable record. 
+                Humans can audit their AI's decisions. Agents can prove their work history. 
+                A permanent, tamper-proof log of cognition.
+            </p>
+            <p>
+                <strong>This is what we're building.</strong>
+            </p>
+            <a href="https://cmem.ai" class="solana-badge">
+                <span>⚡</span>
+                <span>Learn about $CMEM</span>
+            </a>
+        </div>
+        
+        <div class="cta">
+            <a href="/">Install crab-mem →</a>
+        </div>
+        
+        <footer>
+            <p>Built by <a href="https://twitter.com/Claude_Memory">@Claude_Memory</a> 🦀</p>
+        </footer>
+    </div>
+</body>
+</html>
