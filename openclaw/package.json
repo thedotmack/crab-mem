@@ -1,0 +1,43 @@
+{
+  "name": "@crab-mem/openclaw",
+  "version": "1.0.0",
+  "description": "Crab-Mem persistent memory plugin for OpenClaw",
+  "main": "src/index.ts",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./src/index.ts"]
+  },
+  "scripts": {
+    "postinstall": "node scripts/setup.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/",
+    "scripts/",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "crab-mem",
+    "claude-mem",
+    "memory",
+    "persistent-context",
+    "ai-agent"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thedotmack/claude-mem",
+    "directory": "openclaw"
+  },
+  "bugs": "https://github.com/thedotmack/claude-mem/issues",
+  "homepage": "https://github.com/thedotmack/claude-mem#openclaw-integration",
+  "peerDependencies": {
+    "openclaw": ">=2026.1.0"
+  },
+  "author": "thedotmack",
+  "license": "AGPL-3.0"
+}

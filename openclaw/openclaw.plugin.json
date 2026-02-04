@@ -1,0 +1,29 @@
+{
+  "id": "crab-mem",
+  "name": "Crab-Mem (Persistent Memory)",
+  "description": "Automatic persistent memory across sessions. Context syncs to MEMORY.md per workspace. 🦀",
+  "kind": "memory",
+  "version": "1.0.0",
+  "author": "thedotmack",
+  "homepage": "https://crab-mem.ai",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "syncMemoryFile": {
+        "type": "boolean",
+        "default": true,
+        "description": "Automatically sync MEMORY.md on session start"
+      },
+      "workerPort": {
+        "type": "number",
+        "default": 37777,
+        "description": "Port for claude-mem worker service"
+      },
+      "workerPath": {
+        "type": "string",
+        "description": "Custom path to worker-service.cjs (auto-detected if not set)"
+      }
+    }
+  }
+}
