@@ -1,7 +1,7 @@
 /**
  * Crab-Mem OpenClaw Plugin
  * 
- * Persistent memory across sessions via claude-mem worker HTTP API.
+ * Persistent memory across sessions via claude-mem worker CLI hooks.
  * Each workspace gets its own project-scoped context.
  * 
  * @author thedotmack
@@ -12,141 +12,110 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { writeFile } from "fs/promises";
 import { join, basename } from "path";
 import { homedir } from "os";
-import { existsSync, readFileSync, mkdirSync } from "fs";
+import { spawn } from "child_process";
+import { existsSync, readFileSync, mkdirSync, readdirSync, statSync } from "fs";
 
 // ============================================================================
 // Types
 // ============================================================================
 
+let WORKER_SERVICE_PATH: string | null = null;
+
 interface CrabMemConfig {
   syncMemoryFile: boolean;
-  workerPort: number;
-  workerHost: string;
+  project: string;
+  workerPath?: string;
 }
 
 // ============================================================================
-// Worker HTTP API
+// Worker CLI Interface (NOT HTTP - CLI has full parity)
 // ============================================================================
 
-class WorkerClient {
-  private baseUrl: string;
-  private timeout: number = 30000;
-
-  constructor(host: string = "127.0.0.1", port: number = 37777) {
-    this.baseUrl = `http://${host}:${port}`;
-  }
-
-  /**
-   * Check if worker is running and healthy
-   */
-  async isHealthy(): Promise<boolean> {
+function callHook(hookName: string, data: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+  return new Promise((resolve) => {
+    if (!WORKER_SERVICE_PATH) { resolve(null); return; }
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      
-      const response = await fetch(`${this.baseUrl}/api/readiness`, {
-        signal: controller.signal,
+      const proc = spawn("bun", [WORKER_SERVICE_PATH, "hook", "claude-code", hookName], {
+        stdio: ["pipe", "pipe", "pipe"],
       });
-      
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Get context for a project (returns MEMORY.md content)
-   */
-  async getContext(projects: string[]): Promise<string | null> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-      const projectsParam = projects.join(",");
-      const response = await fetch(
-        `${this.baseUrl}/api/context/inject?projects=${encodeURIComponent(projectsParam)}`,
-        { signal: controller.signal }
-      );
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) return null;
-      return await response.text();
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Initialize a session with prompt
-   */
-  async sessionInit(sessionId: string, prompt: string, project: string): Promise<boolean> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-      const response = await fetch(`${this.baseUrl}/api/sessions/init`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session_id: sessionId,
-          prompt,
-          cwd: project,
-        }),
-        signal: controller.signal,
+      let stdout = "";
+      proc.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+      proc.stdin.write(JSON.stringify(data));
+      proc.stdin.end();
+      proc.on("close", (code) => {
+        if (code !== 0) { resolve(null); return; }
+        try { resolve(JSON.parse(stdout)); } catch { resolve(null); }
       });
+      proc.on("error", () => resolve(null));
+      setTimeout(() => { proc.kill(); resolve(null); }, 30000);
+    } catch { resolve(null); }
+  });
+}
 
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Record an observation from tool use
-   */
-  async recordObservation(
-    sessionId: string,
-    toolName: string,
-    toolInput: unknown,
-    toolResponse: string,
-    project: string
-  ): Promise<void> {
-    // Fire and forget - don't await
-    fetch(`${this.baseUrl}/api/sessions/observations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: sessionId,
-        tool_name: toolName,
-        tool_input: toolInput,
-        tool_response: toolResponse,
-        cwd: project,
-      }),
-    }).catch(() => {
-      // Ignore errors - fire and forget
+function callHookFireAndForget(hookName: string, data: Record<string, unknown>): void {
+  if (!WORKER_SERVICE_PATH) return;
+  try {
+    const proc = spawn("bun", [WORKER_SERVICE_PATH, "hook", "claude-code", hookName], {
+      stdio: ["pipe", "ignore", "ignore"],
+      detached: true,
     });
+    proc.stdin.write(JSON.stringify(data));
+    proc.stdin.end();
+    proc.unref();
+  } catch {}
+}
+
+// ============================================================================
+// Worker Discovery
+// ============================================================================
+
+function findWorkerService(userPath?: string): string | null {
+  // 1. User-specified path
+  if (userPath && existsSync(userPath)) {
+    return userPath;
   }
 
-  /**
-   * Summarize a session
-   */
-  async summarize(sessionId: string, lastMessage: string, project: string): Promise<void> {
-    // Fire and forget - don't await
-    fetch(`${this.baseUrl}/api/sessions/summarize`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: sessionId,
-        last_assistant_message: lastMessage,
-        cwd: project,
-      }),
-    }).catch(() => {
-      // Ignore errors - fire and forget
-    });
+  // 2. Standard claude plugins cache
+  const cacheDir = join(homedir(), ".claude/plugins/cache/thedotmack/claude-mem");
+  if (existsSync(cacheDir)) {
+    try {
+      const entries = readdirSync(cacheDir);
+      let latest: string | null = null;
+      let latestMtime = 0;
+      for (const entry of entries) {
+        const fullPath = join(cacheDir, entry);
+        const workerPath = join(fullPath, "scripts/worker-service.cjs");
+        if (existsSync(workerPath)) {
+          const stats = statSync(fullPath);
+          if (stats.mtimeMs > latestMtime) {
+            latestMtime = stats.mtimeMs;
+            latest = entry;
+          }
+        }
+      }
+      if (latest) {
+        return join(cacheDir, latest, "scripts/worker-service.cjs");
+      }
+    } catch {}
   }
+
+  // 3. Marketplace install location
+  const marketplacePath = join(homedir(), ".claude/plugins/marketplaces/thedotmack/scripts/worker-service.cjs");
+  if (existsSync(marketplacePath)) {
+    return marketplacePath;
+  }
+
+  // 4. Local dev paths
+  const devPaths = [
+    join(homedir(), "Projects/claude-mem/scripts/worker-service.cjs"),
+    join(homedir(), "claude-mem/scripts/worker-service.cjs"),
+    "/Projects/claude-mem/scripts/worker-service.cjs",
+  ];
+  for (const p of devPaths) {
+    if (existsSync(p)) return p;
+  }
+
+  return null;
 }
 
 // ============================================================================
@@ -184,20 +153,6 @@ function extractAgentId(sessionKey?: string): string {
   return sessionKey.split(":")[0] || "main";
 }
 
-function loadWorkerConfig(): { host: string; port: number } {
-  try {
-    const settingsPath = join(homedir(), ".claude-mem/settings.json");
-    if (existsSync(settingsPath)) {
-      const settings = JSON.parse(readFileSync(settingsPath, "utf-8"));
-      return {
-        host: settings.CLAUDE_MEM_WORKER_HOST || "127.0.0.1",
-        port: parseInt(settings.CLAUDE_MEM_WORKER_PORT, 10) || 37777,
-      };
-    }
-  } catch {}
-  return { host: "127.0.0.1", port: 37777 };
-}
-
 // ============================================================================
 // Plugin Registration
 // ============================================================================
@@ -207,16 +162,29 @@ export const name = "Crab-Mem (Persistent Memory)";
 
 export default function register(api: OpenClawPluginApi) {
   const userConfig = (api.pluginConfig || {}) as Partial<CrabMemConfig>;
-  const workerSettings = loadWorkerConfig();
+
+  // Find worker service
+  WORKER_SERVICE_PATH = findWorkerService(userConfig.workerPath);
+  
+  if (!WORKER_SERVICE_PATH) {
+    api.logger.warn?.(
+      "crab-mem: worker not found - install claude-mem first: " +
+      "claude plugins add thedotmack/claude-mem"
+    );
+    return;
+  }
+
+  const agentWorkspaces = loadAgentWorkspaces();
 
   const config: CrabMemConfig = {
     syncMemoryFile: userConfig.syncMemoryFile ?? true,
-    workerPort: userConfig.workerPort ?? workerSettings.port,
-    workerHost: userConfig.workerHost ?? workerSettings.host,
+    project: userConfig.project || "openclaw",
+    ...userConfig,
   };
 
-  const worker = new WorkerClient(config.workerHost, config.workerPort);
-  const agentWorkspaces = loadAgentWorkspaces();
+  api.logger.info?.(
+    `crab-mem: ready (${agentWorkspaces.size} workspaces, worker: ${WORKER_SERVICE_PATH})`
+  );
 
   // Session tracking
   const sessionIds = new Map<string, string>();
@@ -239,20 +207,6 @@ export default function register(api: OpenClawPluginApi) {
     );
   }
 
-  // Check worker on startup
-  worker.isHealthy().then((healthy) => {
-    if (healthy) {
-      api.logger.info?.(
-        `crab-mem: Connected to worker at ${config.workerHost}:${config.workerPort} (${agentWorkspaces.size} workspaces)`
-      );
-    } else {
-      api.logger.warn?.(
-        `crab-mem: Worker not responding at ${config.workerHost}:${config.workerPort}. ` +
-        `Start with: bun ~/.claude/plugins/cache/thedotmack/claude-mem/*/scripts/worker-service.cjs start`
-      );
-    }
-  });
-
   // ============================================================================
   // Event Handlers
   // ============================================================================
@@ -270,23 +224,31 @@ export default function register(api: OpenClawPluginApi) {
     if (config.syncMemoryFile && !syncedSessions.has(sessionKey)) {
       syncedSessions.add(sessionKey);
 
-      const context = await worker.getContext([projectName]);
-      if (context) {
-        try {
+      try {
+        const result = await callHook("context", { cwd: workspaceDir });
+        const context =
+          (result as any)?.hookSpecificOutput?.additionalContext ||
+          (result as any)?.additionalContext;
+
+        if (context && typeof context === "string") {
           if (!existsSync(workspaceDir)) {
             mkdirSync(workspaceDir, { recursive: true });
           }
           await writeFile(join(workspaceDir, "MEMORY.md"), context, "utf-8");
-          api.logger.info?.(`crab-mem: Synced MEMORY.md for ${projectName}`);
-        } catch (e) {
-          api.logger.warn?.(`crab-mem: Failed to write MEMORY.md: ${e}`);
+          api.logger.info?.(`crab-mem: synced MEMORY.md for ${projectName}`);
         }
+      } catch (e) {
+        api.logger.warn?.(`crab-mem: failed to sync MEMORY.md for ${projectName}: ${e}`);
       }
     }
 
     // Record session init
     if (event.prompt && event.prompt.length >= 10) {
-      await worker.sessionInit(sessionId, event.prompt, workspaceDir);
+      await callHook("session-init", {
+        session_id: sessionId,
+        prompt: event.prompt,
+        cwd: workspaceDir,
+      });
     }
   });
 
@@ -312,13 +274,13 @@ export default function register(api: OpenClawPluginApi) {
       }
     }
 
-    worker.recordObservation(
-      sessionId,
-      toolName,
-      event.params || {},
-      resultText,
-      workspaceDir
-    );
+    callHookFireAndForget("observation", {
+      session_id: sessionId,
+      tool_name: toolName,
+      tool_input: event.params || {},
+      tool_response: resultText,
+      cwd: workspaceDir,
+    });
   });
 
   /**
@@ -347,7 +309,11 @@ export default function register(api: OpenClawPluginApi) {
       }
     }
 
-    worker.summarize(sessionId, lastMsg, workspaceDir);
+    callHookFireAndForget("summarize", {
+      session_id: sessionId,
+      last_assistant_message: lastMsg,
+      cwd: workspaceDir,
+    });
   });
 
   /**
@@ -356,28 +322,24 @@ export default function register(api: OpenClawPluginApi) {
   api.on("gateway_start", async () => {
     if (!config.syncMemoryFile) return;
 
-    const healthy = await worker.isHealthy();
-    if (!healthy) {
-      api.logger.warn?.("crab-mem: Worker not available, skipping initial sync");
-      return;
-    }
-
     api.logger.info?.(`crab-mem: Syncing ${agentWorkspaces.size} workspace(s)...`);
 
     for (const [agentId, workspaceDir] of agentWorkspaces) {
-      const projectName = basename(workspaceDir);
-      const context = await worker.getContext([projectName]);
-      
-      if (context) {
-        try {
+      try {
+        const result = await callHook("context", { cwd: workspaceDir });
+        const context =
+          (result as any)?.hookSpecificOutput?.additionalContext ||
+          (result as any)?.additionalContext;
+
+        if (context && typeof context === "string") {
           if (!existsSync(workspaceDir)) {
             mkdirSync(workspaceDir, { recursive: true });
           }
           await writeFile(join(workspaceDir, "MEMORY.md"), context, "utf-8");
-          api.logger.info?.(`crab-mem: Synced MEMORY.md for ${agentId}`);
-        } catch {
-          // Silently continue
+          api.logger.info?.(`crab-mem: synced MEMORY.md for ${agentId}`);
         }
+      } catch {
+        // Silently continue
       }
     }
   });
