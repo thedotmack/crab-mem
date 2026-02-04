@@ -53,11 +53,21 @@ curl -fsSL https://crab-mem.sh/check.sh | bash
 
 ## For OpenClaw Agents
 
-After install, add to `~/.openclaw/openclaw.json`:
+### Quick Install
+```bash
+git clone https://github.com/thedotmack/crab-mem
+cd crab-mem/openclaw
+openclaw plugins install -l .
+openclaw gateway restart
+```
+
+### Manual Config (Alternative)
+
+Add to `~/.openclaw/openclaw.json`:
 ```json
 "plugins": {
-  "slots": { "memory": "memory-claudemem" },
-  "entries": { "memory-claudemem": { "enabled": true } }
+  "slots": { "memory": "crab-mem" },
+  "entries": { "crab-mem": { "enabled": true } }
 }
 ```
 
