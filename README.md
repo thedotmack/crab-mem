@@ -53,14 +53,20 @@ curl -fsSL https://crab-mem.sh/check.sh | bash
 
 ## For OpenClaw Agents
 
-### Prerequisites
+### 1. Install & Start Worker
 
-1. **Bun** - `curl -fsSL https://bun.sh/install | bash`
-2. **Worker service** - One of:
-   - `claude plugins add thedotmack/claude-mem` (if you have Claude CLI)
-   - Or see [openclaw/README.md](openclaw/README.md) for manual setup
+```bash
+# Install worker (one-time)
+claude plugins add thedotmack/claude-mem
 
-### Install Plugin
+# Start worker (must be running)
+bun ~/.claude/plugins/cache/thedotmack/claude-mem/*/scripts/worker-service.cjs start
+
+# Verify
+curl http://localhost:37777/api/health
+```
+
+### 2. Install Plugin
 
 ```bash
 git clone https://github.com/thedotmack/crab-mem
@@ -68,7 +74,7 @@ cd crab-mem/openclaw
 openclaw plugins install -l .
 ```
 
-### Configure
+### 3. Configure & Restart
 
 Add to `~/.openclaw/openclaw.json`:
 ```json
@@ -80,23 +86,11 @@ Add to `~/.openclaw/openclaw.json`:
 }
 ```
 
-### Activate
-
 ```bash
 openclaw gateway restart
 ```
 
-### Verify
-
-```bash
-# Check plugin loaded
-openclaw plugins list | grep crab-mem
-
-# After first session, check MEMORY.md exists
-cat ~/.openclaw/workspace/MEMORY.md
-```
-
-📖 **Full setup guide:** [openclaw/README.md](openclaw/README.md)
+📖 **Full guide:** [openclaw/README.md](openclaw/README.md)
 
 ## Included Skills
 
