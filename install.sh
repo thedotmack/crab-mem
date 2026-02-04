@@ -7,7 +7,7 @@
 
 set -e
 
-CRAB_MEM_VERSION="1.1.0"
+CRAB_MEM_VERSION="1.2.0"
 
 CRAB="🦀"
 GREEN='\033[0;32m'
@@ -88,15 +88,15 @@ echo "[${CRAB}] Installing Crab-Mem plugin to $PLUGIN_DIR"
 cat > "$PLUGIN_DIR/index.ts" << 'PLUGIN'
 /**
  * claude-mem OpenClaw Plugin (PR #3769)
- * Installs to ~/.openclaw/plugins/ via crab-mem.sh
+ * Multi-workspace support fix (v1.2.0)
  */
 
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
-import { writeFile } from "fs/promises";
+import { writeFile, readFile } from "fs/promises";
 import { join, basename } from "path";
 import { homedir, tmpdir } from "os";
 import { spawn } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 
 let WORKER_SERVICE_PATH: string | null = null;
 
@@ -140,6 +140,38 @@ function callHookFireAndForget(hookName: string, data: Record<string, unknown>):
   } catch {}
 }
 
+// Load all agent workspaces from config
+function loadAgentWorkspaces(): Map<string, string> {
+  const workspaces = new Map<string, string>();
+  try {
+    const configPath = join(homedir(), ".openclaw/openclaw.json");
+    if (existsSync(configPath)) {
+      const cfg = JSON.parse(readFileSync(configPath, "utf-8"));
+      const defaultWs = cfg.agents?.defaults?.workspace || join(homedir(), ".openclaw/workspace");
+      
+      // Map each agent to its workspace
+      const agents = cfg.agents?.list || [];
+      for (const agent of agents) {
+        const ws = agent.workspace || defaultWs;
+        workspaces.set(agent.id, ws);
+      }
+      
+      // Default fallback
+      if (!workspaces.has("default")) {
+        workspaces.set("default", defaultWs);
+      }
+    }
+  } catch {}
+  return workspaces;
+}
+
+// Extract agent ID from session key (format: "agentId:channelKey" or just "agentId")
+function extractAgentId(sessionKey?: string): string {
+  if (!sessionKey) return "main";
+  const parts = sessionKey.split(":");
+  return parts[0] || "main";
+}
+
 export default function (api: OpenClawPluginApi) {
   const userConfig = (api.pluginConfig || {}) as Partial<ClaudeMemConfig>;
   
@@ -150,15 +182,14 @@ export default function (api: OpenClawPluginApi) {
     const cacheDir = join(homedir(), ".claude/plugins/cache/thedotmack/claude-mem");
     if (existsSync(cacheDir)) {
       try {
-        const fs = require("fs");
-        const entries = fs.readdirSync(cacheDir);
+        const entries = require("fs").readdirSync(cacheDir);
         let latest: string | null = null;
         let latestMtime = 0;
         for (const entry of entries) {
           const fullPath = join(cacheDir, entry);
           const workerPath = join(fullPath, "scripts/worker-service.cjs");
           if (existsSync(workerPath)) {
-            const stats = fs.statSync(fullPath);
+            const stats = require("fs").statSync(fullPath);
             if (stats.mtimeMs > latestMtime) {
               latestMtime = stats.mtimeMs;
               latest = entry;
@@ -177,34 +208,16 @@ export default function (api: OpenClawPluginApi) {
     return;
   }
 
-  // Get workspace from api or config
-  let workspaceDir = api.workspaceDir;
-  if (!workspaceDir || basename(workspaceDir) === "root") {
-    try {
-      const configPath = join(homedir(), ".openclaw/openclaw.json");
-      if (existsSync(configPath)) {
-        const cfg = JSON.parse(require("fs").readFileSync(configPath, "utf-8"));
-        workspaceDir = cfg.agents?.defaults?.workspace || cfg.workspace || workspaceDir;
-      }
-    } catch {}
-  }
-  if (!workspaceDir) workspaceDir = process.cwd();
-
-  const defaultProject = basename(workspaceDir);
+  // Load all agent workspaces
+  const agentWorkspaces = loadAgentWorkspaces();
+  
   const config: ClaudeMemConfig = {
     syncMemoryFile: true,
-    project: userConfig.project || defaultProject,
+    project: userConfig.project || "openclaw",
     ...userConfig,
   };
 
-  let hookCwd = workspaceDir;
-  if (config.project !== defaultProject) {
-    const projectDir = join(tmpdir(), "claude-mem-projects", config.project);
-    if (!existsSync(projectDir)) require("fs").mkdirSync(projectDir, { recursive: true });
-    hookCwd = projectDir;
-  }
-
-  api.logger.info?.(`claude-mem: ready (project: ${config.project}, worker: ${WORKER_SERVICE_PATH})`);
+  api.logger.info?.(`claude-mem: ready (${agentWorkspaces.size} workspaces, worker: ${WORKER_SERVICE_PATH})`);
 
   const sessionIds = new Map<string, string>();
   const syncedSessions = new Set<string>();
@@ -215,33 +228,45 @@ export default function (api: OpenClawPluginApi) {
     return sessionIds.get(k)!;
   }
 
+  // Get workspace for a session
+  function getWorkspaceForSession(sessionKey?: string): string {
+    const agentId = extractAgentId(sessionKey);
+    return agentWorkspaces.get(agentId) || agentWorkspaces.get("main") || join(homedir(), ".openclaw/workspace");
+  }
+
   // Sync MEMORY.md + record prompt
   api.on("before_agent_start", async (event, ctx) => {
     const sessionKey = ctx.sessionKey || "default";
     const sessionId = getSessionId(ctx.sessionKey);
+    const workspaceDir = getWorkspaceForSession(ctx.sessionKey);
+    const projectName = basename(workspaceDir);
 
     if (config.syncMemoryFile && !syncedSessions.has(sessionKey)) {
       syncedSessions.add(sessionKey);
       try {
-        const result = await callHook("context", { cwd: hookCwd });
+        const result = await callHook("context", { cwd: workspaceDir });
         const context = (result as any)?.hookSpecificOutput?.additionalContext || (result as any)?.additionalContext;
         if (context && typeof context === "string") {
-          await writeFile(join(workspaceDir!, "MEMORY.md"), context, "utf-8");
+          await writeFile(join(workspaceDir, "MEMORY.md"), context, "utf-8");
+          api.logger.info?.(`claude-mem: synced MEMORY.md for ${projectName}`);
         }
-      } catch {}
+      } catch (e) {
+        api.logger.warn?.(`claude-mem: failed to sync MEMORY.md for ${projectName}: ${e}`);
+      }
     }
 
     if (event.prompt && event.prompt.length >= 10) {
-      await callHook("session-init", { session_id: sessionId, prompt: event.prompt, cwd: hookCwd });
+      await callHook("session-init", { session_id: sessionId, prompt: event.prompt, cwd: workspaceDir });
     }
   });
 
-  // Record observations - THE KEY: tool_result_persist (not after_tool_call!)
+  // Record observations
   api.on("tool_result_persist", (event, ctx) => {
     const toolName = event.toolName;
     if (!toolName || toolName.startsWith("memory_")) return;
 
     const sessionId = getSessionId(ctx.sessionKey);
+    const workspaceDir = getWorkspaceForSession(ctx.sessionKey);
     const content = event.message?.content;
     let resultText = "";
     if (Array.isArray(content)) {
@@ -254,13 +279,14 @@ export default function (api: OpenClawPluginApi) {
       tool_name: toolName,
       tool_input: event.params || {},
       tool_response: resultText,
-      cwd: hookCwd,
+      cwd: workspaceDir,
     });
   });
 
   // Summarize on end
   api.on("agent_end", async (event, ctx) => {
     const sessionId = getSessionId(ctx.sessionKey);
+    const workspaceDir = getWorkspaceForSession(ctx.sessionKey);
     let lastMsg = "";
     if (Array.isArray(event.messages)) {
       for (let i = event.messages.length - 1; i >= 0; i--) {
@@ -272,19 +298,23 @@ export default function (api: OpenClawPluginApi) {
         }
       }
     }
-    callHookFireAndForget("summarize", { session_id: sessionId, last_assistant_message: lastMsg, cwd: hookCwd });
+    callHookFireAndForget("summarize", { session_id: sessionId, last_assistant_message: lastMsg, cwd: workspaceDir });
   });
 
-  // Sync on gateway start
+  // Sync all workspaces on gateway start
   api.on("gateway_start", async () => {
     if (!config.syncMemoryFile) return;
-    try {
-      const result = await callHook("context", { cwd: hookCwd });
-      const context = (result as any)?.hookSpecificOutput?.additionalContext || (result as any)?.additionalContext;
-      if (context && typeof context === "string") {
-        await writeFile(join(workspaceDir!, "MEMORY.md"), context, "utf-8");
-      }
-    } catch {}
+    
+    for (const [agentId, workspaceDir] of agentWorkspaces) {
+      try {
+        const result = await callHook("context", { cwd: workspaceDir });
+        const context = (result as any)?.hookSpecificOutput?.additionalContext || (result as any)?.additionalContext;
+        if (context && typeof context === "string") {
+          await writeFile(join(workspaceDir, "MEMORY.md"), context, "utf-8");
+          api.logger.info?.(`claude-mem: synced MEMORY.md for ${agentId}`);
+        }
+      } catch {}
+    }
   });
 }
 PLUGIN
