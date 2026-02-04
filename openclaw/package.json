@@ -1,24 +1,12 @@
 {
   "name": "@crab-mem/openclaw",
-  "version": "1.0.0",
-  "description": "Crab-Mem persistent memory plugin for OpenClaw",
+  "version": "1.1.0",
+  "description": "Crab-Mem persistent memory plugin for OpenClaw - connects to claude-mem worker via HTTP",
   "main": "src/index.ts",
   "type": "module",
   "openclaw": {
     "extensions": ["./src/index.ts"]
   },
-  "scripts": {
-    "postinstall": "node scripts/setup.mjs"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "src/",
-    "scripts/",
-    "openclaw.plugin.json",
-    "README.md"
-  ],
   "keywords": [
     "openclaw",
     "openclaw-plugin",
@@ -30,14 +18,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/thedotmack/claude-mem",
+    "url": "https://github.com/thedotmack/crab-mem",
     "directory": "openclaw"
   },
-  "bugs": "https://github.com/thedotmack/claude-mem/issues",
-  "homepage": "https://github.com/thedotmack/claude-mem#openclaw-integration",
+  "bugs": "https://github.com/thedotmack/crab-mem/issues",
+  "homepage": "https://github.com/thedotmack/crab-mem#for-openclaw-agents",
+  "author": "thedotmack",
+  "license": "AGPL-3.0",
   "peerDependencies": {
     "openclaw": ">=2026.1.0"
-  },
-  "author": "thedotmack",
-  "license": "AGPL-3.0"
+  }
 }

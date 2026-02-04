@@ -1,110 +1,66 @@
 # 🦀 Crab-Mem for OpenClaw
 
-Persistent memory for OpenClaw agents. Each workspace gets project-scoped context that persists across sessions.
+Persistent memory for OpenClaw agents via HTTP API.
 
-## System Flow
+## How It Works
 
 ```
-Message → OpenClaw Gateway → crab-mem plugin
-                                  ↓
-                        spawns worker-service.cjs (via bun)
-                                  ↓
-                        worker queries SQLite DB
-                        calls LLM for summarization
-                                  ↓
-                        writes MEMORY.md to workspace
+OpenClaw Gateway
+       ↓
+crab-mem plugin (this)
+       ↓ HTTP calls
+claude-mem worker (port 37777)
+       ↓
+SQLite DB + LLM summarization
+       ↓
+MEMORY.md written to workspace
 ```
 
-## Prerequisites
+The plugin connects to an already-running claude-mem worker via HTTP. No subprocess spawning, no bun dependency in the plugin itself.
 
-| Requirement | Check | Install |
-|-------------|-------|---------|
-| **Node.js 18+** | `node --version` | [nodejs.org](https://nodejs.org) |
-| **Bun** | `bun --version` | `curl -fsSL https://bun.sh/install \| bash` |
-| **OpenClaw** | `openclaw --version` | [docs.openclaw.ai](https://docs.openclaw.ai) |
+## Requirements
+
+| Requirement | Check | Notes |
+|-------------|-------|-------|
+| **OpenClaw** | `openclaw --version` | Agent platform |
+| **claude-mem worker** | `curl localhost:37777/api/health` | Memory backend |
 
 ## Installation
 
-### Option 1: With Claude CLI (Interactive)
+### Step 1: Install the Worker
 
-If you have Claude CLI installed and authenticated:
+The worker is the memory backend. Install it once:
 
 ```bash
-# Install the worker (provides memory backend)
+# Option A: Via Claude CLI (easiest)
 claude plugins add thedotmack/claude-mem
 
-# Install the OpenClaw plugin
-git clone https://github.com/thedotmack/crab-mem
-cd crab-mem/openclaw
-openclaw plugins install -l .
-
-# Configure OpenClaw
-# Add to ~/.openclaw/openclaw.json under "plugins":
-#   "slots": { "memory": "crab-mem" }
-
-# Restart
-openclaw gateway restart
+# Option B: Via the crab-mem installer
+curl -fsSL https://crab-mem.sh/install.sh | bash
 ```
 
-### Option 2: Without Claude CLI (Headless Servers)
+### Step 2: Start the Worker
 
-For bots running on servers without Claude CLI:
-
-**Step 1: Install Bun**
 ```bash
-curl -fsSL https://bun.sh/install | bash
-source ~/.bashrc  # or restart shell
+# Find and start the worker
+bun ~/.claude/plugins/cache/thedotmack/claude-mem/*/scripts/worker-service.cjs start
+
+# Verify it's running
+curl http://localhost:37777/api/health
 ```
 
-**Step 2: Get the worker-service**
+### Step 3: Install the Plugin
 
-The worker is bundled in the claude-mem npm package:
-```bash
-# Create cache directory
-mkdir -p ~/.claude/plugins/cache/thedotmack/claude-mem/latest/scripts
-
-# Download worker (from npm package)
-cd ~/.claude/plugins/cache/thedotmack/claude-mem/latest
-npm pack thedotmack/claude-mem --pack-destination .
-tar -xzf claude-mem-*.tgz --strip-components=1
-rm claude-mem-*.tgz
-```
-
-Or copy from an existing installation:
-```bash
-# If you have it installed elsewhere, copy the scripts directory
-cp -r /path/to/claude-mem/scripts ~/.claude/plugins/cache/thedotmack/claude-mem/latest/
-```
-
-**Step 3: Configure Provider**
-
-Create `~/.claude-mem/settings.json`:
-
-```json
-{
-  "CLAUDE_MEM_PROVIDER": "openrouter",
-  "CLAUDE_MEM_OPENROUTER_API_KEY": "sk-or-v1-your-key-here",
-  "CLAUDE_MEM_OPENROUTER_MODEL": "xiaomi/mimo-v2-flash:free",
-  "CLAUDE_MEM_DATA_DIR": "/root/.claude-mem",
-  "CLAUDE_MEM_LOG_LEVEL": "INFO"
-}
-```
-
-Provider options:
-- `openrouter` - Free tier available at [openrouter.ai/keys](https://openrouter.ai/keys)
-- `gemini` - Requires `CLAUDE_MEM_GEMINI_API_KEY`
-- `claude` - Requires Claude CLI auth or `ANTHROPIC_API_KEY`
-
-**Step 4: Install OpenClaw Plugin**
 ```bash
 git clone https://github.com/thedotmack/crab-mem
 cd crab-mem/openclaw
 openclaw plugins install -l .
 ```
 
-**Step 5: Configure OpenClaw**
+### Step 4: Configure OpenClaw
 
 Add to `~/.openclaw/openclaw.json`:
+
 ```json
 {
   "plugins": {
@@ -120,7 +76,8 @@ Add to `~/.openclaw/openclaw.json`:
 }
 ```
 
-**Step 6: Restart**
+### Step 5: Restart
+
 ```bash
 openclaw gateway restart
 ```
@@ -131,28 +88,25 @@ openclaw gateway restart
 # Check plugin loaded
 openclaw plugins list | grep crab-mem
 
-# Check worker found (in gateway logs)
-journalctl -u openclaw -n 50 | grep crab-mem
-# Should see: "crab-mem: Ready (N workspaces, worker: worker-service.cjs)"
+# Check worker connected (in logs)
+# Should see: "crab-mem: Connected to worker at 127.0.0.1:37777"
 
-# Check database created
-ls -la ~/.claude-mem/claude-mem.db
-
-# Check MEMORY.md synced (after first session)
+# After first session, check MEMORY.md
 cat ~/.openclaw/workspace/MEMORY.md
 ```
 
-## Configuration Options
+## Configuration
 
-In `~/.openclaw/openclaw.json` under `plugins.entries.crab-mem.config`:
+In `plugins.entries.crab-mem.config`:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `syncMemoryFile` | `true` | Write MEMORY.md to workspace on session start |
-| `workerPort` | `37777` | Port for worker HTTP API |
-| `workerPath` | auto | Custom path to worker-service.cjs |
+| `syncMemoryFile` | `true` | Write MEMORY.md on session start |
+| `workerHost` | `127.0.0.1` | Worker HTTP host |
+| `workerPort` | `37777` | Worker HTTP port |
 
-Example:
+Example with custom port:
+
 ```json
 {
   "plugins": {
@@ -160,8 +114,7 @@ Example:
       "crab-mem": {
         "enabled": true,
         "config": {
-          "syncMemoryFile": true,
-          "workerPath": "/custom/path/to/worker-service.cjs"
+          "workerPort": 38888
         }
       }
     }
@@ -171,69 +124,79 @@ Example:
 
 ## Multi-Agent Setup
 
-Each agent gets its own memory scoped to its workspace:
+Each agent workspace gets isolated memory:
 
 ```json
 {
   "agents": {
     "list": [
-      { "id": "main", "workspace": "/root/.openclaw/workspace" },
-      { "id": "dev", "workspace": "/root/.openclaw/workspace-dev" },
-      { "id": "support", "workspace": "/root/.openclaw/workspace-support" }
+      { "id": "main", "workspace": "~/.openclaw/workspace" },
+      { "id": "support", "workspace": "~/.openclaw/workspace-support" }
     ]
   }
 }
 ```
 
-Each workspace will have its own `MEMORY.md` with project-specific context.
+Each workspace will have its own `MEMORY.md`.
+
+## Worker Management
+
+The worker must be running for the plugin to work.
+
+```bash
+# Start worker (backgrounded)
+bun ~/.claude/plugins/cache/thedotmack/claude-mem/*/scripts/worker-service.cjs start
+
+# Check status
+curl http://localhost:37777/api/health
+
+# View logs
+tail -f ~/.claude-mem/logs/*.log
+
+# Stop worker
+bun ~/.claude/plugins/cache/thedotmack/claude-mem/*/scripts/worker-service.cjs stop
+```
+
+### Auto-start on Boot
+
+Add to systemd, cron, or your init system:
+
+```bash
+# Example cron entry (start on reboot)
+@reboot bun ~/.claude/plugins/cache/thedotmack/claude-mem/*/scripts/worker-service.cjs start
+```
 
 ## Troubleshooting
 
-### "Worker service not found"
-
-The plugin can't find `worker-service.cjs`. Check:
-```bash
-# Should exist in one of these locations:
-ls ~/.claude/plugins/cache/thedotmack/claude-mem/*/scripts/worker-service.cjs
-ls ~/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs
-```
-
-If missing, install via Claude CLI or manually (see Option 2 above).
-
-### "bun: command not found"
-
-Install Bun:
-```bash
-curl -fsSL https://bun.sh/install | bash
-source ~/.bashrc
-```
-
-### MEMORY.md not updating
+### "Worker not responding"
 
 1. Check worker is running: `curl http://localhost:37777/api/health`
-2. Check logs: `tail -f ~/.claude-mem/logs/*.log`
+2. Start it: `bun ~/.claude/plugins/cache/thedotmack/claude-mem/*/scripts/worker-service.cjs start`
+3. Check port isn't blocked: `netstat -tlnp | grep 37777`
+
+### MEMORY.md empty or not updating
+
+1. Worker must be healthy before session starts
+2. Check worker logs: `tail -f ~/.claude-mem/logs/*.log`
 3. Verify provider config in `~/.claude-mem/settings.json`
 
-### Database errors
+### Plugin not loading
 
-```bash
-# Check database exists and is writable
-ls -la ~/.claude-mem/claude-mem.db
-# Should be > 0 bytes after first session
-```
+1. Check OpenClaw config: `cat ~/.openclaw/openclaw.json | jq .plugins`
+2. Verify plugin installed: `openclaw plugins list`
+3. Restart gateway: `openclaw gateway restart`
 
 ## Files
 
 | Path | Purpose |
 |------|---------|
-| `~/.claude-mem/claude-mem.db` | SQLite database (observations, summaries) |
-| `~/.claude-mem/settings.json` | Provider and worker config |
+| `~/.claude-mem/claude-mem.db` | SQLite database |
+| `~/.claude-mem/settings.json` | Worker config |
 | `~/.claude-mem/logs/` | Worker logs |
-| `<workspace>/MEMORY.md` | Context file synced to each workspace |
+| `<workspace>/MEMORY.md` | Context per workspace |
 
 ## Links
 
-- 🦀 Crab-Mem: https://crab-mem.sh
-- 📚 Claude-Mem: https://claude-mem.ai
-- 🔧 OpenClaw: https://docs.openclaw.ai
-- 💬 Discord: https://discord.com/invite/J4wttp9vDu
+- 🦀 https://crab-mem.sh
+- 📚 https://claude-mem.ai
+- 🔧 https://docs.openclaw.ai

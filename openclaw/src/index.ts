@@ -1,21 +1,18 @@
 /**
  * Crab-Mem OpenClaw Plugin
  * 
- * Persistent memory across sessions with automatic MEMORY.md sync.
+ * Persistent memory across sessions via claude-mem worker HTTP API.
  * Each workspace gets its own project-scoped context.
- * 
- * Install: openclaw plugins install @crab-mem/openclaw
  * 
  * @author thedotmack
  * @license AGPL-3.0
  */
 
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
-import { writeFile, readFile } from "fs/promises";
+import { writeFile } from "fs/promises";
 import { join, basename } from "path";
 import { homedir } from "os";
-import { spawn } from "child_process";
-import { existsSync, readdirSync, statSync, readFileSync, mkdirSync } from "fs";
+import { existsSync, readFileSync, mkdirSync } from "fs";
 
 // ============================================================================
 // Types
@@ -24,137 +21,131 @@ import { existsSync, readdirSync, statSync, readFileSync, mkdirSync } from "fs";
 interface CrabMemConfig {
   syncMemoryFile: boolean;
   workerPort: number;
-  workerPath?: string;
-  contextTokenLimit: number;
-}
-
-interface HookResult {
-  hookSpecificOutput?: {
-    additionalContext?: string;
-  };
-  additionalContext?: string;
+  workerHost: string;
 }
 
 // ============================================================================
-// Worker Discovery
+// Worker HTTP API
 // ============================================================================
 
-const WORKER_SEARCH_PATHS = [
-  // Plugin cache (versioned, most common)
-  join(homedir(), ".claude/plugins/cache/thedotmack/claude-mem"),
-  // Marketplace install
-  join(homedir(), ".claude/plugins/marketplaces/thedotmack/plugin/scripts"),
-  // Local development
-  join(homedir(), "Projects/claude-mem/scripts"),
-  "/Projects/claude-mem/scripts",
-];
+class WorkerClient {
+  private baseUrl: string;
+  private timeout: number = 30000;
 
-function findWorkerService(customPath?: string): string | null {
-  // Custom path takes priority
-  if (customPath && existsSync(customPath)) {
-    return customPath;
+  constructor(host: string = "127.0.0.1", port: number = 37777) {
+    this.baseUrl = `http://${host}:${port}`;
   }
 
-  // Search cache directory (versioned installs)
-  const cacheDir = WORKER_SEARCH_PATHS[0];
-  if (existsSync(cacheDir)) {
+  /**
+   * Check if worker is running and healthy
+   */
+  async isHealthy(): Promise<boolean> {
     try {
-      const entries = readdirSync(cacheDir);
-      let latest: string | null = null;
-      let latestMtime = 0;
-
-      for (const entry of entries) {
-        const fullPath = join(cacheDir, entry);
-        const workerPath = join(fullPath, "scripts/worker-service.cjs");
-        if (existsSync(workerPath)) {
-          const stats = statSync(fullPath);
-          if (stats.mtimeMs > latestMtime) {
-            latestMtime = stats.mtimeMs;
-            latest = workerPath;
-          }
-        }
-      }
-
-      if (latest) return latest;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      const response = await fetch(`${this.baseUrl}/api/readiness`, {
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      return response.ok;
     } catch {
-      // Continue searching
+      return false;
     }
   }
 
-  // Search other paths
-  for (const basePath of WORKER_SEARCH_PATHS.slice(1)) {
-    const workerPath = join(basePath, "worker-service.cjs");
-    if (existsSync(workerPath)) {
-      return workerPath;
-    }
-  }
-
-  return null;
-}
-
-// ============================================================================
-// Worker Communication
-// ============================================================================
-
-function callHook(
-  workerPath: string,
-  hookName: string,
-  data: Record<string, unknown>
-): Promise<HookResult | null> {
-  return new Promise((resolve) => {
+  /**
+   * Get context for a project (returns MEMORY.md content)
+   */
+  async getContext(projects: string[]): Promise<string | null> {
     try {
-      const proc = spawn("bun", [workerPath, "hook", "claude-code", hookName], {
-        stdio: ["pipe", "pipe", "pipe"],
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      let stdout = "";
-      proc.stdout.on("data", (chunk) => {
-        stdout += chunk.toString();
-      });
+      const projectsParam = projects.join(",");
+      const response = await fetch(
+        `${this.baseUrl}/api/context/inject?projects=${encodeURIComponent(projectsParam)}`,
+        { signal: controller.signal }
+      );
 
-      proc.stdin.write(JSON.stringify(data));
-      proc.stdin.end();
+      clearTimeout(timeoutId);
 
-      proc.on("close", (code) => {
-        if (code !== 0) {
-          resolve(null);
-          return;
-        }
-        try {
-          resolve(JSON.parse(stdout));
-        } catch {
-          resolve(null);
-        }
-      });
-
-      proc.on("error", () => resolve(null));
-
-      // 30 second timeout
-      setTimeout(() => {
-        proc.kill();
-        resolve(null);
-      }, 30000);
+      if (!response.ok) return null;
+      return await response.text();
     } catch {
-      resolve(null);
+      return null;
     }
-  });
-}
+  }
 
-function callHookFireAndForget(
-  workerPath: string,
-  hookName: string,
-  data: Record<string, unknown>
-): void {
-  try {
-    const proc = spawn("bun", [workerPath, "hook", "claude-code", hookName], {
-      stdio: ["pipe", "ignore", "ignore"],
-      detached: true,
+  /**
+   * Initialize a session with prompt
+   */
+  async sessionInit(sessionId: string, prompt: string, project: string): Promise<boolean> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(`${this.baseUrl}/api/sessions/init`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          prompt,
+          cwd: project,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Record an observation from tool use
+   */
+  async recordObservation(
+    sessionId: string,
+    toolName: string,
+    toolInput: unknown,
+    toolResponse: string,
+    project: string
+  ): Promise<void> {
+    // Fire and forget - don't await
+    fetch(`${this.baseUrl}/api/sessions/observations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionId,
+        tool_name: toolName,
+        tool_input: toolInput,
+        tool_response: toolResponse,
+        cwd: project,
+      }),
+    }).catch(() => {
+      // Ignore errors - fire and forget
     });
-    proc.stdin.write(JSON.stringify(data));
-    proc.stdin.end();
-    proc.unref();
-  } catch {
-    // Fire and forget - ignore errors
+  }
+
+  /**
+   * Summarize a session
+   */
+  async summarize(sessionId: string, lastMessage: string, project: string): Promise<void> {
+    // Fire and forget - don't await
+    fetch(`${this.baseUrl}/api/sessions/summarize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionId,
+        last_assistant_message: lastMessage,
+        cwd: project,
+      }),
+    }).catch(() => {
+      // Ignore errors - fire and forget
+    });
   }
 }
 
@@ -172,23 +163,16 @@ function loadAgentWorkspaces(): Map<string, string> {
       const defaultWs =
         cfg.agents?.defaults?.workspace || join(homedir(), ".openclaw/workspace");
 
-      // Map each agent to its workspace
       const agents = cfg.agents?.list || [];
       for (const agent of agents) {
         const ws = agent.workspace || defaultWs;
         workspaces.set(agent.id, ws);
       }
 
-      // Ensure defaults
-      if (!workspaces.has("default")) {
-        workspaces.set("default", defaultWs);
-      }
-      if (!workspaces.has("main")) {
-        workspaces.set("main", defaultWs);
-      }
+      if (!workspaces.has("default")) workspaces.set("default", defaultWs);
+      if (!workspaces.has("main")) workspaces.set("main", defaultWs);
     }
   } catch {
-    // Fallback to default workspace
     workspaces.set("default", join(homedir(), ".openclaw/workspace"));
   }
 
@@ -197,8 +181,21 @@ function loadAgentWorkspaces(): Map<string, string> {
 
 function extractAgentId(sessionKey?: string): string {
   if (!sessionKey) return "main";
-  const parts = sessionKey.split(":");
-  return parts[0] || "main";
+  return sessionKey.split(":")[0] || "main";
+}
+
+function loadWorkerConfig(): { host: string; port: number } {
+  try {
+    const settingsPath = join(homedir(), ".claude-mem/settings.json");
+    if (existsSync(settingsPath)) {
+      const settings = JSON.parse(readFileSync(settingsPath, "utf-8"));
+      return {
+        host: settings.CLAUDE_MEM_WORKER_HOST || "127.0.0.1",
+        port: parseInt(settings.CLAUDE_MEM_WORKER_PORT, 10) || 37777,
+      };
+    }
+  } catch {}
+  return { host: "127.0.0.1", port: 37777 };
 }
 
 // ============================================================================
@@ -210,31 +207,16 @@ export const name = "Crab-Mem (Persistent Memory)";
 
 export default function register(api: OpenClawPluginApi) {
   const userConfig = (api.pluginConfig || {}) as Partial<CrabMemConfig>;
+  const workerSettings = loadWorkerConfig();
 
-  // Resolve worker path
-  const workerPath = findWorkerService(userConfig.workerPath);
-
-  if (!workerPath) {
-    api.logger.warn?.(
-      "crab-mem: Worker service not found. Install with: claude plugins add thedotmack/claude-mem"
-    );
-    return;
-  }
-
-  // Load configuration with defaults
   const config: CrabMemConfig = {
     syncMemoryFile: userConfig.syncMemoryFile ?? true,
-    workerPort: userConfig.workerPort ?? 37777,
-    contextTokenLimit: userConfig.contextTokenLimit ?? 20000,
-    workerPath,
+    workerPort: userConfig.workerPort ?? workerSettings.port,
+    workerHost: userConfig.workerHost ?? workerSettings.host,
   };
 
-  // Load all agent workspaces
+  const worker = new WorkerClient(config.workerHost, config.workerPort);
   const agentWorkspaces = loadAgentWorkspaces();
-
-  api.logger.info?.(
-    `crab-mem: Ready (${agentWorkspaces.size} workspaces, worker: ${basename(workerPath)})`
-  );
 
   // Session tracking
   const sessionIds = new Map<string, string>();
@@ -257,6 +239,20 @@ export default function register(api: OpenClawPluginApi) {
     );
   }
 
+  // Check worker on startup
+  worker.isHealthy().then((healthy) => {
+    if (healthy) {
+      api.logger.info?.(
+        `crab-mem: Connected to worker at ${config.workerHost}:${config.workerPort} (${agentWorkspaces.size} workspaces)`
+      );
+    } else {
+      api.logger.warn?.(
+        `crab-mem: Worker not responding at ${config.workerHost}:${config.workerPort}. ` +
+        `Start with: bun ~/.claude/plugins/cache/thedotmack/claude-mem/*/scripts/worker-service.cjs start`
+      );
+    }
+  });
+
   // ============================================================================
   // Event Handlers
   // ============================================================================
@@ -274,35 +270,23 @@ export default function register(api: OpenClawPluginApi) {
     if (config.syncMemoryFile && !syncedSessions.has(sessionKey)) {
       syncedSessions.add(sessionKey);
 
-      try {
-        const result = await callHook(workerPath!, "context", { cwd: workspaceDir });
-        const context =
-          (result as HookResult)?.hookSpecificOutput?.additionalContext ||
-          (result as HookResult)?.additionalContext;
-
-        if (context && typeof context === "string") {
-          // Ensure workspace exists
+      const context = await worker.getContext([projectName]);
+      if (context) {
+        try {
           if (!existsSync(workspaceDir)) {
             mkdirSync(workspaceDir, { recursive: true });
           }
-
           await writeFile(join(workspaceDir, "MEMORY.md"), context, "utf-8");
           api.logger.info?.(`crab-mem: Synced MEMORY.md for ${projectName}`);
+        } catch (e) {
+          api.logger.warn?.(`crab-mem: Failed to write MEMORY.md: ${e}`);
         }
-      } catch (e) {
-        api.logger.warn?.(
-          `crab-mem: Failed to sync MEMORY.md for ${projectName}: ${e}`
-        );
       }
     }
 
-    // Record session initialization
+    // Record session init
     if (event.prompt && event.prompt.length >= 10) {
-      await callHook(workerPath!, "session-init", {
-        session_id: sessionId,
-        prompt: event.prompt,
-        cwd: workspaceDir,
-      });
+      await worker.sessionInit(sessionId, event.prompt, workspaceDir);
     }
   });
 
@@ -311,14 +295,12 @@ export default function register(api: OpenClawPluginApi) {
    */
   api.on("tool_result_persist", (event, ctx) => {
     const toolName = event.toolName;
-
-    // Skip memory tools to avoid recursion
     if (!toolName || toolName.startsWith("memory_")) return;
 
     const sessionId = getSessionId(ctx.sessionKey);
     const workspaceDir = getWorkspaceForSession(ctx.sessionKey);
 
-    // Extract tool result text
+    // Extract result text
     const content = event.message?.content;
     let resultText = "";
     if (Array.isArray(content)) {
@@ -330,14 +312,13 @@ export default function register(api: OpenClawPluginApi) {
       }
     }
 
-    // Fire and forget observation recording
-    callHookFireAndForget(workerPath!, "observation", {
-      session_id: sessionId,
-      tool_name: toolName,
-      tool_input: event.params || {},
-      tool_response: resultText,
-      cwd: workspaceDir,
-    });
+    worker.recordObservation(
+      sessionId,
+      toolName,
+      event.params || {},
+      resultText,
+      workspaceDir
+    );
   });
 
   /**
@@ -347,7 +328,6 @@ export default function register(api: OpenClawPluginApi) {
     const sessionId = getSessionId(ctx.sessionKey);
     const workspaceDir = getWorkspaceForSession(ctx.sessionKey);
 
-    // Extract last assistant message
     let lastMsg = "";
     if (Array.isArray(event.messages)) {
       for (let i = event.messages.length - 1; i >= 0; i--) {
@@ -367,12 +347,7 @@ export default function register(api: OpenClawPluginApi) {
       }
     }
 
-    // Fire and forget summarization
-    callHookFireAndForget(workerPath!, "summarize", {
-      session_id: sessionId,
-      last_assistant_message: lastMsg,
-      cwd: workspaceDir,
-    });
+    worker.summarize(sessionId, lastMsg, workspaceDir);
   });
 
   /**
@@ -381,26 +356,28 @@ export default function register(api: OpenClawPluginApi) {
   api.on("gateway_start", async () => {
     if (!config.syncMemoryFile) return;
 
+    const healthy = await worker.isHealthy();
+    if (!healthy) {
+      api.logger.warn?.("crab-mem: Worker not available, skipping initial sync");
+      return;
+    }
+
     api.logger.info?.(`crab-mem: Syncing ${agentWorkspaces.size} workspace(s)...`);
 
     for (const [agentId, workspaceDir] of agentWorkspaces) {
-      try {
-        const result = await callHook(workerPath!, "context", { cwd: workspaceDir });
-        const context =
-          (result as HookResult)?.hookSpecificOutput?.additionalContext ||
-          (result as HookResult)?.additionalContext;
-
-        if (context && typeof context === "string") {
-          // Ensure workspace exists
+      const projectName = basename(workspaceDir);
+      const context = await worker.getContext([projectName]);
+      
+      if (context) {
+        try {
           if (!existsSync(workspaceDir)) {
             mkdirSync(workspaceDir, { recursive: true });
           }
-
           await writeFile(join(workspaceDir, "MEMORY.md"), context, "utf-8");
           api.logger.info?.(`crab-mem: Synced MEMORY.md for ${agentId}`);
+        } catch {
+          // Silently continue
         }
-      } catch {
-        // Silently continue - workspace may not have any history yet
       }
     }
   });
