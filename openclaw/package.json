@@ -1,5 +1,5 @@
 {
-  "name": "@crab-mem/openclaw",
+  "name": "@crab-mem/crab-mem",
   "version": "1.1.0",
   "description": "Crab-Mem persistent memory plugin for OpenClaw - connects to claude-mem worker via HTTP",
   "main": "src/index.ts",
