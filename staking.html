@@ -286,7 +286,8 @@
 
         /* ========== STAKING WIDGET ========== */
         .widget-section { background: var(--ocean); }
-        .widget-container { max-width: 520px; margin: 0 auto; }
+        .widget-container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
+        @media (max-width: 768px) { .widget-container { grid-template-columns: 1fr; max-width: 520px; } }
         .widget {
             background: rgba(15, 34, 64, 0.5);
             backdrop-filter: blur(20px);
