@@ -17,9 +17,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
-    <script>window.Buffer = window.buffer.Buffer;</script>
-    <script src="https://unpkg.com/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
     <style>
         :root {
             --ocean: #0a1628;
@@ -69,47 +66,17 @@
         .nav-links { display: flex; align-items: center; gap: 1.5rem; }
         .nav-links a { color: var(--white-dim); text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: color 0.2s; }
         .nav-links a:hover { color: var(--white); }
-        #walletBtn {
+        .nav-stake-btn {
             background: linear-gradient(135deg, var(--crab), var(--crab-dark));
             border: none; color: #fff; padding: 0.5rem 1.2rem;
             border-radius: 12px; font-family: 'Space Grotesk', sans-serif;
             font-weight: 600; font-size: 0.85rem; cursor: pointer;
             transition: all 0.3s; box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+            text-decoration: none; display: inline-flex; align-items: center;
         }
-        #walletBtn:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(255, 107, 53, 0.5); }
-        #walletBtn.connected { background: linear-gradient(135deg, var(--sol-green-dark), #00aa6e); box-shadow: 0 0 20px rgba(0, 255, 163, 0.3); }
+        .nav-stake-btn:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(255, 107, 53, 0.5); color: #fff; }
         @media (max-width: 768px) {
-            .nav-links a:not(#walletBtn) { display: none; }
-        }
-
-        /* ========== WALLET MODAL ========== */
-        .modal-overlay {
-            display: none; position: fixed; inset: 0; z-index: 2000;
-            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
-            align-items: center; justify-content: center;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal {
-            background: var(--ocean-light); border: 1px solid var(--glass-border);
-            border-radius: 20px; padding: 2rem; max-width: 380px; width: 90%;
-            text-align: center;
-        }
-        .modal h3 { margin-bottom: 1.5rem; font-size: 1.3rem; }
-        .wallet-option {
-            display: flex; align-items: center; gap: 1rem;
-            padding: 1rem 1.5rem; margin-bottom: 0.75rem;
-            background: var(--glass); border: 1px solid var(--glass-border);
-            border-radius: 14px; cursor: pointer; transition: all 0.2s;
-            width: 100%; font-size: 1rem; color: var(--white);
-            font-family: 'Inter', sans-serif;
-        }
-        .wallet-option:hover { border-color: var(--crab); background: rgba(255, 107, 53, 0.1); }
-        .wallet-option .wallet-icon { font-size: 1.5rem; }
-        .wallet-option .wallet-name { font-weight: 600; }
-        .wallet-option .wallet-status { margin-left: auto; font-size: 0.75rem; color: var(--sol-green); }
-        .modal-close {
-            margin-top: 1rem; background: none; border: none;
-            color: var(--white-dim); cursor: pointer; font-size: 0.9rem;
+            .nav-links a:not(.nav-stake-btn) { display: none; }
         }
 
         /* ========== HERO ========== */
@@ -155,9 +122,9 @@
         .hero-cta {
             display: inline-flex; align-items: center; gap: 0.5rem;
             background: linear-gradient(135deg, var(--crab), var(--crab-dark));
-            color: #fff; border: none; padding: 1rem 2.5rem;
+            color: #fff; border: none; padding: 1.2rem 3rem;
             border-radius: 16px; font-family: 'Space Grotesk', sans-serif;
-            font-weight: 700; font-size: 1.2rem; cursor: pointer;
+            font-weight: 700; font-size: 1.3rem; cursor: pointer;
             transition: all 0.3s; text-decoration: none;
             animation: ctaGlow 2s ease-in-out infinite;
         }
@@ -269,69 +236,48 @@
         .widget-container { max-width: 520px; margin: 0 auto; }
         .widget {
             background: var(--ocean-light); border: 1px solid var(--glass-border);
-            border-radius: 24px; padding: 2rem; position: relative;
+            border-radius: 24px; padding: 2.5rem; position: relative;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
         }
-        .widget-tabs {
-            display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
-            background: var(--glass); border-radius: 12px; padding: 4px;
+        .widget-ready-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;
         }
-        .widget-tab {
-            flex: 1; padding: 0.6rem; border: none; border-radius: 10px;
-            font-family: 'Space Grotesk', sans-serif; font-weight: 600;
-            font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
-            background: transparent; color: var(--white-dim);
+        .widget-ready-sub {
+            color: var(--white-dim); font-size: 1.05rem; margin-bottom: 2rem;
+            line-height: 1.6;
         }
-        .widget-tab.active { background: var(--crab); color: #fff; }
-        .widget-tab:not(.active):hover { color: var(--white); }
-        .widget-input-group {
-            background: var(--glass); border: 1px solid var(--glass-border);
-            border-radius: 16px; padding: 1rem 1.2rem; margin-bottom: 1rem;
-        }
-        .widget-input-label {
-            display: flex; justify-content: space-between;
-            font-size: 0.8rem; color: var(--white-dim); margin-bottom: 0.5rem;
-        }
-        .widget-input-row { display: flex; align-items: center; gap: 0.5rem; }
-        .widget-input {
-            flex: 1; background: none; border: none; outline: none;
-            font-family: 'JetBrains Mono', monospace; font-size: 1.5rem;
-            font-weight: 700; color: var(--white);
-        }
-        .widget-input::placeholder { color: rgba(160,176,192,0.4); }
-        .max-btn {
-            background: rgba(255,107,53,0.15); border: 1px solid rgba(255,107,53,0.3);
-            color: var(--crab); padding: 0.3rem 0.8rem; border-radius: 8px;
-            font-family: 'Space Grotesk', sans-serif; font-weight: 600;
-            font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
-        }
-        .max-btn:hover { background: rgba(255,107,53,0.3); }
-        .token-badge {
-            display: flex; align-items: center; gap: 0.4rem;
-            font-weight: 600; font-size: 0.9rem; color: var(--crab);
-        }
-        .token-badge img { width: 24px; height: 24px; border-radius: 50%; }
-        .widget-info {
-            display: flex; justify-content: space-between; padding: 0.75rem 0;
-            font-size: 0.85rem; color: var(--white-dim);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .widget-info:last-of-type { border-bottom: none; }
-        .widget-info span:last-child { color: var(--white); font-weight: 500; }
-        .stake-btn {
-            width: 100%; padding: 1rem; margin-top: 1rem;
-            background: linear-gradient(135deg, var(--crab), var(--crab-dark));
-            border: none; border-radius: 16px; color: #fff;
+        .mega-stake-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            gap: 0.5rem; width: 100%;
+            background: linear-gradient(135deg, var(--crab), #ff4500, var(--crab-dark));
+            background-size: 200% 200%;
+            animation: megaGlow 2s ease-in-out infinite, gradientShift 3s ease infinite;
+            border: none; border-radius: 20px; color: #fff;
             font-family: 'Space Grotesk', sans-serif; font-weight: 700;
-            font-size: 1.1rem; cursor: pointer; transition: all 0.3s;
-            position: relative; overflow: hidden;
+            font-size: 1.5rem; padding: 1.4rem 2rem;
+            cursor: pointer; transition: all 0.3s;
+            text-decoration: none;
         }
-        .stake-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,107,53,0.4); }
-        .stake-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .stake-btn.unstake { background: linear-gradient(135deg, #4a5568, #2d3748); }
+        @keyframes megaGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255,107,53,0.5), 0 0 60px rgba(255,107,53,0.2); }
+            50% { box-shadow: 0 0 50px rgba(255,107,53,0.8), 0 0 100px rgba(255,107,53,0.4), 0 0 150px rgba(255,107,53,0.1); }
+        }
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .mega-stake-btn:hover { transform: translateY(-3px) scale(1.03); }
+        .widget-hint {
+            margin-top: 1rem; font-size: 0.8rem; color: var(--white-dim);
+            line-height: 1.5;
+        }
+        .widget-hint a { color: var(--sol-green); text-decoration: none; }
+        .widget-hint a:hover { text-decoration: underline; }
         .streamflow-badge {
             display: flex; align-items: center; justify-content: center;
-            gap: 0.5rem; margin-top: 1rem; font-size: 0.75rem; color: var(--white-dim);
+            gap: 0.5rem; margin-top: 1.5rem; font-size: 0.75rem; color: var(--white-dim);
         }
         .streamflow-badge a { color: var(--sol-green); text-decoration: none; }
         .streamflow-badge a:hover { text-decoration: underline; }
@@ -519,30 +465,6 @@
         .footer-tagline { font-size: 0.85rem; color: var(--white-dim); margin-bottom: 0.5rem; }
         .footer-addr { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: rgba(160,176,192,0.5); word-break: break-all; }
 
-        /* ========== CONFETTI CANVAS ========== */
-        #confettiCanvas {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 9999;
-        }
-
-        /* ========== CELEBRATE OVERLAY ========== */
-        .celebrate-overlay {
-            display: none; position: fixed; inset: 0; z-index: 9998;
-            align-items: center; justify-content: center;
-            background: rgba(10,22,40,0.8); backdrop-filter: blur(5px);
-        }
-        .celebrate-overlay.active { display: flex; }
-        .celebrate-content { text-align: center; animation: popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275); }
-        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .celebrate-content img { width: 250px; margin-bottom: 1rem; }
-        .celebrate-content h2 { font-size: 2rem; color: var(--sol-green); margin-bottom: 0.5rem; }
-        .celebrate-content p { color: var(--white-dim); margin-bottom: 1.5rem; }
-        .celebrate-close {
-            background: var(--crab); border: none; color: #fff;
-            padding: 0.7rem 2rem; border-radius: 12px; cursor: pointer;
-            font-family: 'Space Grotesk', sans-serif; font-weight: 600;
-        }
-
         /* ========== MISC ========== */
         .gradient-line {
             height: 2px; width: 80px;
@@ -564,40 +486,9 @@
         <a href="#stake">Stake</a>
         <a href="#leaderboard">Leaderboard</a>
         <a href="#faq">FAQ</a>
-        <button id="walletBtn" onclick="handleWalletClick()">Connect Wallet</button>
+        <a class="nav-stake-btn" href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer">Stake Now ↗</a>
     </div>
 </nav>
-
-<!-- WALLET MODAL -->
-<div class="modal-overlay" id="walletModal">
-    <div class="modal">
-        <h3>🦀 Connect Your Wallet</h3>
-        <button class="wallet-option" onclick="connectWallet('phantom')">
-            <span class="wallet-icon">👻</span>
-            <span class="wallet-name">Phantom</span>
-            <span class="wallet-status" id="phantomStatus"></span>
-        </button>
-        <button class="wallet-option" onclick="connectWallet('solflare')">
-            <span class="wallet-icon">🔥</span>
-            <span class="wallet-name">Solflare</span>
-            <span class="wallet-status" id="solflareStatus"></span>
-        </button>
-        <button class="modal-close" onclick="closeWalletModal()">Cancel</button>
-    </div>
-</div>
-
-<!-- CELEBRATE OVERLAY -->
-<div class="celebrate-overlay" id="celebrateOverlay">
-    <div class="celebrate-content">
-        <img src="/images/staking/crab-celebrate.webp" alt="Celebrating crab">
-        <h2>LFG! 🦀🚀</h2>
-        <p>You're staking like a true degen crab.<br>Diamond claws only.</p>
-        <button class="celebrate-close" onclick="closeCelebrate()">Nice. 😎</button>
-    </div>
-</div>
-
-<!-- CONFETTI CANVAS -->
-<canvas id="confettiCanvas"></canvas>
 
 <!-- HERO -->
 <section class="hero">
@@ -607,7 +498,7 @@
             <div class="hero-badge">🔒 STAKING LIVE ON SOLANA</div>
             <div class="hero-apy">69% APY</div>
             <p class="hero-sub">Stake your $CMEM and earn rewards so fat, even other crabs will be jealous. Diamond claws get rewarded.</p>
-            <a href="#stake" class="hero-cta">🦀 Start Staking</a>
+            <a href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer" class="hero-cta">🦀 Start Staking ↗</a>
             <div class="hero-stats">
                 <div class="hero-stat-item">
                     <div class="hero-stat-value" id="heroTotalStaked" style="color:var(--sol-green)">Loading...</div>
@@ -644,8 +535,8 @@
             <div class="how-card reveal">
                 <div class="how-step">1</div>
                 <div class="how-card-icon">🦀</div>
-                <h3>Connect Wallet</h3>
-                <p>Even crabs have wallets now. Phantom or Solflare — we don't judge. (We judge a little.)</p>
+                <h3>Go to Streamflow</h3>
+                <p>Click the big orange button. It takes you to Streamflow Finance where you'll connect your wallet. Easy peasy, crab squeezy.</p>
             </div>
             <div class="how-card reveal">
                 <div class="how-step">2</div>
@@ -702,33 +593,14 @@
         <p class="section-subtitle reveal">Put those tokens to work. They've been sitting in your wallet doing nothing — just like you.</p>
         <div class="widget-container reveal">
             <div class="widget">
-                <div class="widget-tabs">
-                    <button class="widget-tab active" onclick="switchTab('stake')">Stake</button>
-                    <button class="widget-tab" onclick="switchTab('unstake')">Unstake</button>
-                </div>
-                <div class="widget-input-group">
-                    <div class="widget-input-label">
-                        <span id="inputLabel">Amount to Stake</span>
-                        <span>Balance: <span id="tokenBalance" class="mono">—</span></span>
-                    </div>
-                    <div class="widget-input-row">
-                        <input type="number" class="widget-input" id="stakeAmount" placeholder="0.00" min="0" step="any" oninput="updateCalc()">
-                        <button class="max-btn" onclick="setMax()">MAX</button>
-                        <div class="token-badge">
-                            <img src="/images/staking/crab-icon.webp" alt="" onerror="this.outerHTML='🦀'">
-                            CMEM
-                        </div>
-                    </div>
-                </div>
-                <div class="widget-info"><span>APY</span><span style="color:var(--sol-green)">69%</span></div>
-                <div class="widget-info"><span>Min Lock Period</span><span>30 days</span></div>
-                <div class="widget-info"><span>Pool Expires</span><span>Jan 27, 2027</span></div>
-                <div class="widget-info"><span>Network</span><span>Solana</span></div>
-                <button class="stake-btn" id="stakeBtn" onclick="handleStake()" disabled>
-                    Connect Wallet to Stake
-                </button>
+                <div class="widget-ready-title">Ready to Stake? 🦀</div>
+                <p class="widget-ready-sub">Your tokens aren't going to stake themselves.<br>Click the button. Do it. The crab commands you.</p>
+                <a href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer" class="mega-stake-btn">
+                    STAKE ON STREAMFLOW 🦀
+                </a>
+                <p class="widget-hint">Opens <a href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer">Streamflow Finance</a> — connect your wallet there and stake directly</p>
                 <div class="streamflow-badge">
-                    Powered by <a href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener">Streamflow ↗</a>
+                    Powered by <a href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer">Streamflow ↗</a>
                 </div>
             </div>
 
@@ -827,8 +699,8 @@
                     <button class="copy-btn" onclick="copyAddr('2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS', this)">Copy</button>
                 </div>
                 <div class="contract-links">
-                    <a href="https://solscan.io/token/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener">Solscan ↗</a>
-                    <a href="https://explorer.solana.com/address/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener">Explorer ↗</a>
+                    <a href="https://solscan.io/token/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener noreferrer">Solscan ↗</a>
+                    <a href="https://explorer.solana.com/address/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener noreferrer">Explorer ↗</a>
                     <span class="verified-badge">✓ Verified</span>
                 </div>
             </div>
@@ -839,8 +711,8 @@
                     <button class="copy-btn" onclick="copyAddr('2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg', this)">Copy</button>
                 </div>
                 <div class="contract-links">
-                    <a href="https://solscan.io/account/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener">Solscan ↗</a>
-                    <a href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener">Streamflow ↗</a>
+                    <a href="https://solscan.io/account/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer">Solscan ↗</a>
+                    <a href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer">Streamflow ↗</a>
                     <span class="verified-badge">✓ Verified</span>
                 </div>
             </div>
@@ -917,9 +789,9 @@
     <div class="footer-inner">
         <div class="footer-links">
             <a href="https://cmem.ai">Main Site</a>
-            <a href="https://twitter.com/Claude_Memory" target="_blank">Twitter</a>
-            <a href="https://t.me/crabmem" target="_blank">Telegram</a>
-            <a href="https://github.com/thedotmack/crab-mem" target="_blank">GitHub</a>
+            <a href="https://twitter.com/Claude_Memory" target="_blank" rel="noopener noreferrer">Twitter</a>
+            <a href="https://t.me/crabmem" target="_blank" rel="noopener noreferrer">Telegram</a>
+            <a href="https://github.com/thedotmack/crab-mem" target="_blank" rel="noopener noreferrer">GitHub</a>
             <a href="/bounties">Bounties</a>
         </div>
         <p class="footer-tagline">Built by crabs, for crabs. 🦀 Diamond claws since 2026.</p>
@@ -931,23 +803,10 @@
 (function() {
     'use strict';
 
-    // ========== STATE ==========
-    const STATE = {
-        wallet: null,
-        provider: null,
-        publicKey: null,
-        balance: null,
-        tab: 'stake',
-        connected: false,
-    };
-
-    const TOKEN_MINT = '2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS';
     const POOL_ADDR = '2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg';
-    const STREAMFLOW_URL = 'https://app.streamflow.finance/staking/solana/mainnet/' + POOL_ADDR;
-    const RPC_URL = 'https://api.mainnet-beta.solana.com';
     const POOL_EXPIRY = new Date('2027-01-26T05:00:00Z');
 
-    // ========== LEADERBOARD DATA (loaded from API) ==========
+    // ========== LEADERBOARD DATA ==========
     let leaderboardData = [];
 
     // ========== LIVE DATA FETCH ==========
@@ -961,17 +820,14 @@
             const data = await res.json();
             if (data.error) throw new Error(data.message);
 
-            // Update pool stats
             const totalStaked = data.pool.totalStaked;
             const stakerCount = data.pool.stakerCount;
 
-            // Update hero pool size
             const heroPoolEl = document.getElementById('heroTotalStaked');
             if (heroPoolEl) {
                 heroPoolEl.textContent = formatAbbr(totalStaked);
             }
 
-            // Update stats section
             const statValues = document.querySelectorAll('.stat-card .stat-value');
             statValues.forEach(el => {
                 const label = el.nextElementSibling?.textContent?.trim();
@@ -984,10 +840,9 @@
                 }
             });
 
-            // Build leaderboard
             leaderboardData = data.stakers.map((s, i) => {
                 const rank = i + 1;
-                let badge = '🐐'; // OG for all first stakers
+                let badge = '🐐';
                 if (rank === 1) badge = '👑 ' + badge;
                 if (s.amount >= 500000000) badge = '💎 ' + badge;
                 else if (s.amount >= 100000000) badge = '🦀 ' + badge;
@@ -1005,13 +860,8 @@
         } catch (err) {
             console.error('Failed to fetch staking data:', err);
             if (!stakingDataLoaded) {
-                // Show error state
                 const tbody = document.getElementById('lbBody');
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--white-dim);padding:2rem;">Data unavailable — try refreshing</td></tr>';
-                document.querySelectorAll('.stat-card .stat-value[data-count]').forEach(el => {
-                    el.textContent = '—';
-                    el.removeAttribute('data-count');
-                });
             }
         }
     }
@@ -1029,174 +879,12 @@
         initScrollReveal();
         updateCountdown();
         setInterval(updateCountdown, 60000);
-        detectWallets();
         updateCalcSlider();
-        // Load live data
         fetchStakingData();
         setInterval(fetchStakingData, 60000);
     });
 
-    // ========== WALLET ==========
-    function detectWallets() {
-        const pStatus = document.getElementById('phantomStatus');
-        const sStatus = document.getElementById('solflareStatus');
-        if (window.phantom?.solana?.isPhantom) { pStatus.textContent = 'Detected'; }
-        else { pStatus.textContent = 'Not installed'; pStatus.style.color = 'var(--white-dim)'; }
-        if (window.solflare?.isSolflare) { sStatus.textContent = 'Detected'; }
-        else { sStatus.textContent = 'Not installed'; sStatus.style.color = 'var(--white-dim)'; }
-    }
-
-    window.handleWalletClick = function() {
-        if (STATE.connected) {
-            disconnectWallet();
-        } else {
-            document.getElementById('walletModal').classList.add('active');
-            detectWallets();
-        }
-    };
-
-    window.closeWalletModal = function() {
-        document.getElementById('walletModal').classList.remove('active');
-    };
-
-    window.connectWallet = async function(type) {
-        let provider;
-        try {
-            if (type === 'phantom') {
-                provider = window.phantom?.solana;
-                if (!provider?.isPhantom) {
-                    window.open('https://phantom.app/', '_blank');
-                    return;
-                }
-            } else if (type === 'solflare') {
-                provider = window.solflare;
-                if (!provider?.isSolflare) {
-                    window.open('https://solflare.com/', '_blank');
-                    return;
-                }
-            }
-            const resp = await provider.connect();
-            STATE.provider = provider;
-            STATE.publicKey = resp.publicKey.toString();
-            STATE.connected = true;
-            STATE.wallet = type;
-
-            const btn = document.getElementById('walletBtn');
-            btn.textContent = STATE.publicKey.slice(0, 4) + '...' + STATE.publicKey.slice(-4);
-            btn.classList.add('connected');
-
-            const stakeBtn = document.getElementById('stakeBtn');
-            stakeBtn.disabled = false;
-            stakeBtn.textContent = STATE.tab === 'stake' ? '🦀 Stake $CMEM' : '🔓 Unstake $CMEM';
-
-            closeWalletModal();
-            fetchTokenBalance();
-
-            provider.on('accountChanged', (pk) => {
-                if (pk) {
-                    STATE.publicKey = pk.toString();
-                    btn.textContent = STATE.publicKey.slice(0, 4) + '...' + STATE.publicKey.slice(-4);
-                    fetchTokenBalance();
-                } else { disconnectWallet(); }
-            });
-        } catch (e) {
-            console.error('Wallet connect error:', e);
-        }
-    };
-
-    function disconnectWallet() {
-        if (STATE.provider?.disconnect) STATE.provider.disconnect();
-        STATE.connected = false;
-        STATE.publicKey = null;
-        STATE.provider = null;
-        STATE.balance = null;
-        STATE.wallet = null;
-        const btn = document.getElementById('walletBtn');
-        btn.textContent = 'Connect Wallet';
-        btn.classList.remove('connected');
-        document.getElementById('tokenBalance').textContent = '—';
-        const stakeBtn = document.getElementById('stakeBtn');
-        stakeBtn.disabled = true;
-        stakeBtn.textContent = 'Connect Wallet to Stake';
-    }
-
-    async function fetchTokenBalance() {
-        if (!STATE.publicKey) return;
-        try {
-            const connection = new solanaWeb3.Connection(RPC_URL);
-            const pubkey = new solanaWeb3.PublicKey(STATE.publicKey);
-            const mint = new solanaWeb3.PublicKey(TOKEN_MINT);
-            const tokenAccounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint });
-            let total = 0;
-            for (const acc of tokenAccounts.value) {
-                total += acc.account.data.parsed.info.tokenAmount.uiAmount || 0;
-            }
-            STATE.balance = total;
-            document.getElementById('tokenBalance').textContent = formatNumber(total) + ' CMEM';
-        } catch (e) {
-            console.error('Balance fetch error:', e);
-            document.getElementById('tokenBalance').textContent = 'Error';
-        }
-    }
-
-    // ========== STAKING WIDGET ==========
-    window.switchTab = function(tab) {
-        STATE.tab = tab;
-        document.querySelectorAll('.widget-tab').forEach((t, i) => {
-            t.classList.toggle('active', (i === 0 && tab === 'stake') || (i === 1 && tab === 'unstake'));
-        });
-        document.getElementById('inputLabel').textContent = tab === 'stake' ? 'Amount to Stake' : 'Amount to Unstake';
-        const stakeBtn = document.getElementById('stakeBtn');
-        if (STATE.connected) {
-            stakeBtn.textContent = tab === 'stake' ? '🦀 Stake $CMEM' : '🔓 Unstake $CMEM';
-            stakeBtn.classList.toggle('unstake', tab === 'unstake');
-        }
-    };
-
-    window.setMax = function() {
-        if (STATE.balance !== null) {
-            document.getElementById('stakeAmount').value = STATE.balance;
-            updateCalc();
-        }
-    };
-
-    window.handleStake = function() {
-        const amount = parseFloat(document.getElementById('stakeAmount').value);
-        if (!STATE.connected) { handleWalletClick(); return; }
-        if (!amount || amount <= 0) { alert('Enter an amount, you silly crab.'); return; }
-
-        if (STATE.tab === 'stake') {
-            console.log('[CMEM Staking] Stake action:', { amount, wallet: STATE.publicKey });
-            // Redirect to Streamflow for actual staking
-            window.open(STREAMFLOW_URL, '_blank');
-            showCelebration();
-        } else {
-            console.log('[CMEM Staking] Unstake action:', { amount, wallet: STATE.publicKey });
-            window.open(STREAMFLOW_URL, '_blank');
-        }
-    };
-
-    function showCelebration() {
-        document.getElementById('celebrateOverlay').classList.add('active');
-        fireConfetti();
-    }
-
-    window.closeCelebrate = function() {
-        document.getElementById('celebrateOverlay').classList.remove('active');
-    };
-
-    window.updateCalc = function() {
-        // Sync widget input to calculator
-        const amount = parseFloat(document.getElementById('stakeAmount').value) || 0;
-        if (amount > 0) {
-            const days = parseInt(document.getElementById('calcDays').value) || 90;
-            const earnings = amount * 0.69 / 365 * days;
-            const daily = amount * 0.69 / 365;
-            document.getElementById('calcResult').textContent = formatNumber(Math.round(earnings)) + ' CMEM';
-            document.getElementById('calcDaily').textContent = '~' + formatNumber(Math.round(daily)) + '/day';
-        }
-    };
-
+    // ========== CALCULATOR ==========
     window.updateCalcSlider = function() {
         const amount = parseInt(document.getElementById('calcAmount').value);
         const days = parseInt(document.getElementById('calcDays').value);
@@ -1222,7 +910,7 @@
             const solscanLink = item.full ? `https://solscan.io/account/${item.full}` : '#';
             tr.innerHTML = `
                 <td class="rank-cell${rankClass}">#${item.rank}</td>
-                <td class="addr-cell"><a href="${solscanLink}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" title="${item.full || ''}">${item.addr}</a></td>
+                <td class="addr-cell"><a href="${solscanLink}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;" title="${item.full || ''}">${item.addr}</a></td>
                 <td class="amount-cell">${formatNumber(item.amount)}</td>
                 <td>${item.duration}d</td>
                 <td class="badge-cell">${item.badge}</td>
@@ -1336,58 +1024,6 @@
             setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
         });
     };
-
-    // ========== CONFETTI ==========
-    function fireConfetti() {
-        const canvas = document.getElementById('confettiCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        const colors = ['#ff6b35', '#00ffa3', '#ffd700', '#ff4757', '#7c5cfc', '#00d2ff'];
-        const particles = [];
-
-        for (let i = 0; i < 150; i++) {
-            particles.push({
-                x: canvas.width * Math.random(),
-                y: -10 - Math.random() * 200,
-                w: 4 + Math.random() * 6,
-                h: 4 + Math.random() * 6,
-                color: colors[Math.floor(Math.random() * colors.length)],
-                vx: (Math.random() - 0.5) * 4,
-                vy: 2 + Math.random() * 4,
-                rot: Math.random() * Math.PI * 2,
-                rv: (Math.random() - 0.5) * 0.2,
-                life: 1,
-            });
-        }
-
-        let frame = 0;
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            let alive = 0;
-            particles.forEach(p => {
-                if (p.life <= 0) return;
-                alive++;
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 0.05;
-                p.rot += p.rv;
-                p.life -= 0.005;
-                ctx.save();
-                ctx.translate(p.x, p.y);
-                ctx.rotate(p.rot);
-                ctx.globalAlpha = p.life;
-                ctx.fillStyle = p.color;
-                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-                ctx.restore();
-            });
-            frame++;
-            if (alive > 0 && frame < 300) requestAnimationFrame(draw);
-            else ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        requestAnimationFrame(draw);
-    }
 
     // ========== UTILS ==========
     function formatNumber(n) {
