@@ -503,7 +503,7 @@
             transition: border-color 0.3s;
         }
         .contract-card:hover { border-color: rgba(255,107,53,0.4); }
-        .contract-card.full-width { grid-column: 1 / -1; }
+        .contract-card.full-width { grid-column: auto; }
         .contract-card h4 {
             font-size: 0.75rem; text-transform: uppercase;
             letter-spacing: 0.1em; color: var(--white-dim); margin-bottom: 0.75rem;
@@ -851,30 +851,6 @@
         <p class="section-subtitle reveal">Verify everything. Trust, but verify. Actually, just verify.</p>
         <div class="contract-grid reveal">
             <div class="contract-card">
-                <h4>Token Contract</h4>
-                <div class="contract-addr">
-                    <code>2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS</code>
-                    <button class="copy-btn" onclick="copyAddr('2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS', this)">Copy</button>
-                </div>
-                <div class="contract-links">
-                    <a class="contract-link-btn" href="https://solscan.io/token/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener noreferrer">Solscan ↗</a>
-                    <a class="contract-link-btn" href="https://explorer.solana.com/address/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener noreferrer">Explorer ↗</a>
-                    <span class="verified-badge">✓ Verified</span>
-                </div>
-            </div>
-            <div class="contract-card">
-                <h4>Staking Pool (Streamflow)</h4>
-                <div class="contract-addr">
-                    <code>2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg</code>
-                    <button class="copy-btn" onclick="copyAddr('2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg', this)">Copy</button>
-                </div>
-                <div class="contract-links">
-                    <a class="contract-link-btn" href="https://solscan.io/account/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer">Solscan ↗</a>
-                    <a class="contract-link-btn" href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer">Streamflow ↗</a>
-                    <span class="verified-badge">✓ Verified</span>
-                </div>
-            </div>
-            <div class="contract-card full-width">
                 <h4>Pool Parameters</h4>
                 <div class="pool-params">
                     <div class="pool-param"><span class="pool-param-label">Total Rewards</span><span class="pool-param-value">150,000,000 CMEM</span></div>
@@ -883,6 +859,32 @@
                     <div class="pool-param"><span class="pool-param-label">Pool Expiry</span><span class="pool-param-value">January 27, 2027</span></div>
                     <div class="pool-param"><span class="pool-param-label">Network</span><span class="pool-param-value">Solana Mainnet</span></div>
                     <div class="pool-param"><span class="pool-param-label">Platform</span><span class="pool-param-value">Streamflow Finance</span></div>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1.2rem;">
+                <div class="contract-card">
+                    <h4>Token Contract</h4>
+                    <div class="contract-addr">
+                        <code>2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS</code>
+                        <button class="copy-btn" onclick="copyAddr('2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS', this)">Copy</button>
+                    </div>
+                    <div class="contract-links">
+                        <a class="contract-link-btn" href="https://solscan.io/token/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener noreferrer">Solscan ↗</a>
+                        <a class="contract-link-btn" href="https://explorer.solana.com/address/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener noreferrer">Explorer ↗</a>
+                        <span class="verified-badge">✓ Verified</span>
+                    </div>
+                </div>
+                <div class="contract-card">
+                    <h4>Staking Pool (Streamflow)</h4>
+                    <div class="contract-addr">
+                        <code>2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg</code>
+                        <button class="copy-btn" onclick="copyAddr('2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg', this)">Copy</button>
+                    </div>
+                    <div class="contract-links">
+                        <a class="contract-link-btn" href="https://solscan.io/account/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer">Solscan ↗</a>
+                        <a class="contract-link-btn" href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener noreferrer">Streamflow ↗</a>
+                        <span class="verified-badge">✓ Verified</span>
+                    </div>
                 </div>
             </div>
         </div>
