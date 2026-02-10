@@ -1,4 +1,16 @@
 {
-  "cleanUrls": true,
-  "trailingSlash": false
+  "routes": [
+    {
+      "src": "/",
+      "has": [{ "type": "host", "value": "staking.cmem.ai" }],
+      "dest": "/staking.html"
+    },
+    { "handle": "filesystem" },
+    {
+      "src": "/(.*)",
+      "has": [{ "type": "host", "value": "staking.cmem.ai" }],
+      "dest": "/staking.html"
+    },
+    { "src": "/(.*)\\.html", "dest": "/$1" }
+  ]
 }

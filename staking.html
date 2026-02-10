@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stake $CMEM | 69% APY | Crab Memory</title>
+    <meta name="description" content="Stake your $CMEM tokens for 69% APY. Because even crabs know diamond claws beat paper hands. Powered by Streamflow on Solana.">
+    <meta property="og:title" content="Stake $CMEM — 69% APY 🦀">
+    <meta property="og:description" content="Stake your $CMEM tokens for 69% APY. Diamond claws only.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://staking.cmem.ai">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Stake $CMEM — 69% APY 🦀">
+    <meta name="twitter:description" content="Stake your $CMEM tokens for 69% APY. Diamond claws only.">
+    <link rel="icon" href="/images/staking/crab-icon.webp" type="image/webp">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦀</text></svg>" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+    <script>window.Buffer = window.buffer.Buffer;</script>
+    <script src="https://unpkg.com/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
+    <style>
+        :root {
+            --ocean: #0a1628;
+            --ocean-light: #0f2240;
+            --ocean-mid: #132d54;
+            --crab: #ff6b35;
+            --crab-light: #ff8c5a;
+            --crab-dark: #e05520;
+            --sol-green: #00ffa3;
+            --sol-green-dark: #00cc82;
+            --white: #f0f0f0;
+            --white-dim: #a0b0c0;
+            --glass: rgba(15, 34, 64, 0.7);
+            --glass-border: rgba(255, 107, 53, 0.2);
+            --danger: #ff4757;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--ocean);
+            color: var(--white);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* ========== NAV ========== */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+            background: rgba(10, 22, 40, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0 1.5rem;
+            height: 64px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; }
+        .nav-logo img { width: 36px; height: 36px; border-radius: 50%; }
+        .nav-logo span { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.1rem; color: var(--crab); }
+        .nav-links { display: flex; align-items: center; gap: 1.5rem; }
+        .nav-links a { color: var(--white-dim); text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--white); }
+        #walletBtn {
+            background: linear-gradient(135deg, var(--crab), var(--crab-dark));
+            border: none; color: #fff; padding: 0.5rem 1.2rem;
+            border-radius: 12px; font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600; font-size: 0.85rem; cursor: pointer;
+            transition: all 0.3s; box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+        }
+        #walletBtn:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(255, 107, 53, 0.5); }
+        #walletBtn.connected { background: linear-gradient(135deg, var(--sol-green-dark), #00aa6e); box-shadow: 0 0 20px rgba(0, 255, 163, 0.3); }
+        @media (max-width: 768px) {
+            .nav-links a:not(#walletBtn) { display: none; }
+        }
+
+        /* ========== WALLET MODAL ========== */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; z-index: 2000;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--ocean-light); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 2rem; max-width: 380px; width: 90%;
+            text-align: center;
+        }
+        .modal h3 { margin-bottom: 1.5rem; font-size: 1.3rem; }
+        .wallet-option {
+            display: flex; align-items: center; gap: 1rem;
+            padding: 1rem 1.5rem; margin-bottom: 0.75rem;
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 14px; cursor: pointer; transition: all 0.2s;
+            width: 100%; font-size: 1rem; color: var(--white);
+            font-family: 'Inter', sans-serif;
+        }
+        .wallet-option:hover { border-color: var(--crab); background: rgba(255, 107, 53, 0.1); }
+        .wallet-option .wallet-icon { font-size: 1.5rem; }
+        .wallet-option .wallet-name { font-weight: 600; }
+        .wallet-option .wallet-status { margin-left: auto; font-size: 0.75rem; color: var(--sol-green); }
+        .modal-close {
+            margin-top: 1rem; background: none; border: none;
+            color: var(--white-dim); cursor: pointer; font-size: 0.9rem;
+        }
+
+        /* ========== HERO ========== */
+        .hero {
+            position: relative; min-height: 100vh; display: flex;
+            align-items: center; justify-content: center;
+            padding: 80px 1.5rem 2rem; overflow: hidden;
+        }
+        .hero-bg {
+            position: absolute; inset: 0;
+            background: url('/images/staking/hero-bg.png') center/cover no-repeat;
+            z-index: 0;
+        }
+        .hero-bg::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(10,22,40,0.7) 0%, rgba(10,22,40,0.85) 60%, var(--ocean) 100%);
+        }
+        .hero-content {
+            position: relative; z-index: 2;
+            display: flex; align-items: center; gap: 3rem;
+            max-width: 1200px; width: 100%;
+        }
+        .hero-text { flex: 1; }
+        .hero-badge {
+            display: inline-block; background: rgba(255, 107, 53, 0.15);
+            border: 1px solid rgba(255, 107, 53, 0.3); border-radius: 100px;
+            padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: 600;
+            color: var(--crab-light); margin-bottom: 1.5rem;
+            letter-spacing: 0.05em;
+        }
+        .hero-apy {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(4rem, 10vw, 8rem); font-weight: 700;
+            line-height: 1;
+            background: linear-gradient(135deg, var(--crab), var(--sol-green));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; margin-bottom: 0.5rem;
+        }
+        .hero-sub {
+            font-size: clamp(1rem, 2.5vw, 1.4rem);
+            color: var(--white-dim); margin-bottom: 2rem; max-width: 500px;
+        }
+        .hero-cta {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            background: linear-gradient(135deg, var(--crab), var(--crab-dark));
+            color: #fff; border: none; padding: 1rem 2.5rem;
+            border-radius: 16px; font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700; font-size: 1.2rem; cursor: pointer;
+            transition: all 0.3s; text-decoration: none;
+            animation: ctaGlow 2s ease-in-out infinite;
+        }
+        @keyframes ctaGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255,107,53,0.4); }
+            50% { box-shadow: 0 0 40px rgba(255,107,53,0.7), 0 0 80px rgba(255,107,53,0.3); }
+        }
+        .hero-cta:hover { transform: translateY(-2px) scale(1.02); }
+        .hero-stats {
+            display: flex; gap: 2rem; margin-top: 2.5rem;
+        }
+        .hero-stat-item { text-align: left; }
+        .hero-stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 700; color: var(--sol-green); }
+        .hero-stat-label { font-size: 0.75rem; color: var(--white-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+        .hero-crab {
+            flex: 0 0 auto; position: relative;
+        }
+        .hero-crab img {
+            width: clamp(250px, 30vw, 420px); height: auto;
+            animation: crabBounce 3s ease-in-out infinite;
+            filter: drop-shadow(0 20px 60px rgba(255,107,53,0.3));
+        }
+        @keyframes crabBounce {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-15px) rotate(1deg); }
+            75% { transform: translateY(5px) rotate(-1deg); }
+        }
+        @media (max-width: 768px) {
+            .hero-content { flex-direction: column-reverse; text-align: center; }
+            .hero-crab img { width: 200px; }
+            .hero-stats { justify-content: center; }
+            .hero-sub { margin-left: auto; margin-right: auto; }
+        }
+
+        /* Wave divider */
+        .wave-divider {
+            position: absolute; bottom: -2px; left: 0; right: 0; z-index: 3;
+        }
+        .wave-divider svg { display: block; width: 100%; height: auto; }
+
+        /* ========== SECTIONS ========== */
+        section { padding: 5rem 1.5rem; position: relative; }
+        .section-inner { max-width: 1100px; margin: 0 auto; }
+        .section-title {
+            font-size: clamp(1.8rem, 4vw, 2.5rem); font-weight: 700;
+            text-align: center; margin-bottom: 0.5rem;
+        }
+        .section-subtitle {
+            text-align: center; color: var(--white-dim);
+            font-size: 1.05rem; margin-bottom: 3rem; max-width: 600px;
+            margin-left: auto; margin-right: auto;
+        }
+
+        /* Scroll reveal */
+        .reveal {
+            opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+
+        /* ========== HOW IT WORKS ========== */
+        .how-cards {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        .how-card {
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 2rem; text-align: center;
+            transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .how-card:hover { transform: translateY(-5px); border-color: var(--crab); }
+        .how-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 3px; background: linear-gradient(90deg, var(--crab), var(--sol-green));
+            transform: scaleX(0); transition: transform 0.3s; transform-origin: left;
+        }
+        .how-card:hover::before { transform: scaleX(1); }
+        .how-step {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--crab), var(--crab-dark));
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+            font-size: 1.2rem; margin: 0 auto 1rem;
+        }
+        .how-card-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .how-card h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+        .how-card p { color: var(--white-dim); font-size: 0.95rem; }
+
+        /* ========== POOL STATS ========== */
+        .stats-section { background: var(--ocean-light); }
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        .stat-card {
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 1.5rem; text-align: center;
+        }
+        .stat-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700;
+            color: var(--sol-green); margin-bottom: 0.25rem;
+        }
+        .stat-label { font-size: 0.8rem; color: var(--white-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+
+        /* ========== STAKING WIDGET ========== */
+        .widget-section { background: var(--ocean); }
+        .widget-container { max-width: 520px; margin: 0 auto; }
+        .widget {
+            background: var(--ocean-light); border: 1px solid var(--glass-border);
+            border-radius: 24px; padding: 2rem; position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .widget-tabs {
+            display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
+            background: var(--glass); border-radius: 12px; padding: 4px;
+        }
+        .widget-tab {
+            flex: 1; padding: 0.6rem; border: none; border-radius: 10px;
+            font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+            font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+            background: transparent; color: var(--white-dim);
+        }
+        .widget-tab.active { background: var(--crab); color: #fff; }
+        .widget-tab:not(.active):hover { color: var(--white); }
+        .widget-input-group {
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 1rem 1.2rem; margin-bottom: 1rem;
+        }
+        .widget-input-label {
+            display: flex; justify-content: space-between;
+            font-size: 0.8rem; color: var(--white-dim); margin-bottom: 0.5rem;
+        }
+        .widget-input-row { display: flex; align-items: center; gap: 0.5rem; }
+        .widget-input {
+            flex: 1; background: none; border: none; outline: none;
+            font-family: 'JetBrains Mono', monospace; font-size: 1.5rem;
+            font-weight: 700; color: var(--white);
+        }
+        .widget-input::placeholder { color: rgba(160,176,192,0.4); }
+        .max-btn {
+            background: rgba(255,107,53,0.15); border: 1px solid rgba(255,107,53,0.3);
+            color: var(--crab); padding: 0.3rem 0.8rem; border-radius: 8px;
+            font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+            font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+        }
+        .max-btn:hover { background: rgba(255,107,53,0.3); }
+        .token-badge {
+            display: flex; align-items: center; gap: 0.4rem;
+            font-weight: 600; font-size: 0.9rem; color: var(--crab);
+        }
+        .token-badge img { width: 24px; height: 24px; border-radius: 50%; }
+        .widget-info {
+            display: flex; justify-content: space-between; padding: 0.75rem 0;
+            font-size: 0.85rem; color: var(--white-dim);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .widget-info:last-of-type { border-bottom: none; }
+        .widget-info span:last-child { color: var(--white); font-weight: 500; }
+        .stake-btn {
+            width: 100%; padding: 1rem; margin-top: 1rem;
+            background: linear-gradient(135deg, var(--crab), var(--crab-dark));
+            border: none; border-radius: 16px; color: #fff;
+            font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+            font-size: 1.1rem; cursor: pointer; transition: all 0.3s;
+            position: relative; overflow: hidden;
+        }
+        .stake-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,107,53,0.4); }
+        .stake-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .stake-btn.unstake { background: linear-gradient(135deg, #4a5568, #2d3748); }
+        .streamflow-badge {
+            display: flex; align-items: center; justify-content: center;
+            gap: 0.5rem; margin-top: 1rem; font-size: 0.75rem; color: var(--white-dim);
+        }
+        .streamflow-badge a { color: var(--sol-green); text-decoration: none; }
+        .streamflow-badge a:hover { text-decoration: underline; }
+
+        /* Calculator */
+        .calculator {
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 1.5rem; margin-top: 1.5rem;
+        }
+        .calculator h4 { font-size: 0.95rem; margin-bottom: 1rem; color: var(--crab-light); }
+        .calc-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .calc-row label { font-size: 0.85rem; color: var(--white-dim); }
+        .calc-row input[type="range"] {
+            width: 60%; accent-color: var(--crab);
+        }
+        .calc-row .calc-val { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--sol-green); font-size: 0.9rem; }
+        .calc-result {
+            text-align: center; padding: 1rem; margin-top: 0.5rem;
+            background: rgba(0,255,163,0.05); border: 1px solid rgba(0,255,163,0.2);
+            border-radius: 12px;
+        }
+        .calc-result .big-num {
+            font-family: 'JetBrains Mono', monospace; font-size: 1.8rem;
+            font-weight: 700; color: var(--sol-green);
+        }
+        .calc-result .label { font-size: 0.8rem; color: var(--white-dim); }
+
+        /* ========== WHY STAKE ========== */
+        .why-section { background: var(--ocean-light); }
+        .why-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 3rem;
+            align-items: center;
+        }
+        .why-image img { width: 100%; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+        .why-text h3 { font-size: 1.5rem; margin-bottom: 1rem; color: var(--crab-light); }
+        .why-text p { color: var(--white-dim); margin-bottom: 1.5rem; font-size: 1.05rem; line-height: 1.8; }
+        .why-list { list-style: none; }
+        .why-list li {
+            padding: 0.75rem 0; padding-left: 2rem; position: relative;
+            font-size: 0.95rem; color: var(--white-dim);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .why-list li::before { content: '🦀'; position: absolute; left: 0; }
+        .why-list li:last-child { border-bottom: none; }
+        @media (max-width: 768px) {
+            .why-grid { grid-template-columns: 1fr; }
+            .why-image { order: -1; }
+        }
+
+        /* ========== LEADERBOARD ========== */
+        .leaderboard-controls {
+            display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+        }
+        .lb-search {
+            flex: 1; min-width: 200px; padding: 0.7rem 1rem;
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 12px; color: var(--white);
+            font-family: 'Inter', sans-serif; font-size: 0.9rem; outline: none;
+        }
+        .lb-search:focus { border-color: var(--crab); }
+        .lb-search::placeholder { color: var(--white-dim); }
+        .lb-sort {
+            padding: 0.7rem 1rem; background: var(--glass);
+            border: 1px solid var(--glass-border); border-radius: 12px;
+            color: var(--white); font-family: 'Inter', sans-serif;
+            font-size: 0.9rem; cursor: pointer;
+        }
+        .leaderboard-table {
+            width: 100%; border-collapse: collapse;
+            background: var(--glass); border-radius: 16px;
+            overflow: hidden; border: 1px solid var(--glass-border);
+        }
+        .leaderboard-table th {
+            padding: 1rem; text-align: left; font-size: 0.75rem;
+            text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--white-dim); background: rgba(0,0,0,0.2);
+            cursor: pointer; user-select: none;
+        }
+        .leaderboard-table th:hover { color: var(--crab); }
+        .leaderboard-table td {
+            padding: 0.85rem 1rem; border-top: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.9rem;
+        }
+        .leaderboard-table tr:hover td { background: rgba(255,107,53,0.05); }
+        .rank-cell { font-weight: 700; }
+        .rank-1 { color: #ffd700; }
+        .rank-2 { color: #c0c0c0; }
+        .rank-3 { color: #cd7f32; }
+        .addr-cell { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--white-dim); }
+        .amount-cell { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--sol-green); }
+        .badge-cell { font-size: 1.1rem; }
+        .share-btn {
+            background: none; border: 1px solid rgba(255,255,255,0.1);
+            color: var(--white-dim); padding: 0.3rem 0.6rem; border-radius: 6px;
+            font-size: 0.7rem; cursor: pointer; transition: all 0.2s;
+        }
+        .share-btn:hover { border-color: #1da1f2; color: #1da1f2; }
+        .lb-table-wrap { overflow-x: auto; border-radius: 16px; }
+        @media (max-width: 768px) {
+            .leaderboard-table th, .leaderboard-table td { padding: 0.6rem 0.5rem; font-size: 0.8rem; }
+        }
+
+        /* ========== CONTRACT INFO ========== */
+        .contract-section {
+            background: var(--ocean-light);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .contract-section .section-title { color: var(--white); }
+        .contract-section .section-subtitle { color: var(--white-dim); }
+        .contract-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .contract-card {
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 1.5rem;
+        }
+        .contract-card h4 {
+            font-size: 0.8rem; text-transform: uppercase;
+            letter-spacing: 0.1em; color: var(--white-dim); margin-bottom: 0.75rem;
+        }
+        .contract-addr {
+            display: flex; align-items: center; gap: 0.5rem;
+            background: rgba(0,0,0,0.3); padding: 0.75rem 1rem;
+            border-radius: 10px; margin-bottom: 0.75rem;
+        }
+        .contract-addr code {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+            color: var(--sol-green); word-break: break-all; flex: 1;
+        }
+        .copy-btn {
+            background: rgba(255,107,53,0.15); border: 1px solid rgba(255,107,53,0.3);
+            color: var(--crab); padding: 0.3rem 0.6rem; border-radius: 6px;
+            font-size: 0.7rem; cursor: pointer; transition: all 0.2s;
+            white-space: nowrap; font-family: 'Inter', sans-serif;
+        }
+        .copy-btn:hover { background: rgba(255,107,53,0.3); }
+        .contract-links { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .contract-links a {
+            font-size: 0.8rem; color: var(--sol-green);
+            text-decoration: none; display: flex; align-items: center; gap: 0.3rem;
+        }
+        .contract-links a:hover { text-decoration: underline; }
+        .verified-badge {
+            display: inline-flex; align-items: center; gap: 0.3rem;
+            background: rgba(0,255,163,0.1); border: 1px solid rgba(0,255,163,0.2);
+            padding: 0.2rem 0.6rem; border-radius: 6px;
+            font-size: 0.75rem; color: var(--sol-green); font-weight: 600;
+        }
+
+        /* ========== FAQ ========== */
+        .faq-list { max-width: 700px; margin: 0 auto; }
+        .faq-item {
+            border: 1px solid var(--glass-border); border-radius: 16px;
+            margin-bottom: 0.75rem; overflow: hidden;
+            background: var(--glass); transition: border-color 0.3s;
+        }
+        .faq-item:hover { border-color: rgba(255,107,53,0.4); }
+        .faq-q {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1.2rem 1.5rem; cursor: pointer; font-weight: 600;
+            font-family: 'Space Grotesk', sans-serif; font-size: 1rem;
+            user-select: none; transition: color 0.2s;
+        }
+        .faq-q:hover { color: var(--crab-light); }
+        .faq-arrow { transition: transform 0.3s; font-size: 0.8rem; color: var(--crab); }
+        .faq-item.open .faq-arrow { transform: rotate(180deg); }
+        .faq-a {
+            max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s;
+            padding: 0 1.5rem;
+        }
+        .faq-item.open .faq-a { max-height: 300px; padding: 0 1.5rem 1.2rem; }
+        .faq-a p { color: var(--white-dim); font-size: 0.95rem; line-height: 1.7; }
+
+        /* ========== FOOTER ========== */
+        footer {
+            padding: 3rem 1.5rem; text-align: center;
+            border-top: 1px solid var(--glass-border);
+        }
+        .footer-inner { max-width: 800px; margin: 0 auto; }
+        .footer-links { display: flex; justify-content: center; gap: 2rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .footer-links a { color: var(--white-dim); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--crab); }
+        .footer-tagline { font-size: 0.85rem; color: var(--white-dim); margin-bottom: 0.5rem; }
+        .footer-addr { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: rgba(160,176,192,0.5); word-break: break-all; }
+
+        /* ========== CONFETTI CANVAS ========== */
+        #confettiCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 9999;
+        }
+
+        /* ========== CELEBRATE OVERLAY ========== */
+        .celebrate-overlay {
+            display: none; position: fixed; inset: 0; z-index: 9998;
+            align-items: center; justify-content: center;
+            background: rgba(10,22,40,0.8); backdrop-filter: blur(5px);
+        }
+        .celebrate-overlay.active { display: flex; }
+        .celebrate-content { text-align: center; animation: popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275); }
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .celebrate-content img { width: 250px; margin-bottom: 1rem; }
+        .celebrate-content h2 { font-size: 2rem; color: var(--sol-green); margin-bottom: 0.5rem; }
+        .celebrate-content p { color: var(--white-dim); margin-bottom: 1.5rem; }
+        .celebrate-close {
+            background: var(--crab); border: none; color: #fff;
+            padding: 0.7rem 2rem; border-radius: 12px; cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+        }
+
+        /* ========== MISC ========== */
+        .gradient-line {
+            height: 2px; width: 80px;
+            background: linear-gradient(90deg, var(--crab), var(--sol-green));
+            margin: 0 auto 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+    <a class="nav-logo" href="/">
+        <img src="/images/staking/crab-icon.webp" alt="CMEM" onerror="this.style.display='none'">
+        <span>$CMEM</span>
+    </a>
+    <div class="nav-links">
+        <a href="#how">How It Works</a>
+        <a href="#stake">Stake</a>
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#faq">FAQ</a>
+        <button id="walletBtn" onclick="handleWalletClick()">Connect Wallet</button>
+    </div>
+</nav>
+
+<!-- WALLET MODAL -->
+<div class="modal-overlay" id="walletModal">
+    <div class="modal">
+        <h3>🦀 Connect Your Wallet</h3>
+        <button class="wallet-option" onclick="connectWallet('phantom')">
+            <span class="wallet-icon">👻</span>
+            <span class="wallet-name">Phantom</span>
+            <span class="wallet-status" id="phantomStatus"></span>
+        </button>
+        <button class="wallet-option" onclick="connectWallet('solflare')">
+            <span class="wallet-icon">🔥</span>
+            <span class="wallet-name">Solflare</span>
+            <span class="wallet-status" id="solflareStatus"></span>
+        </button>
+        <button class="modal-close" onclick="closeWalletModal()">Cancel</button>
+    </div>
+</div>
+
+<!-- CELEBRATE OVERLAY -->
+<div class="celebrate-overlay" id="celebrateOverlay">
+    <div class="celebrate-content">
+        <img src="/images/staking/crab-celebrate.webp" alt="Celebrating crab">
+        <h2>LFG! 🦀🚀</h2>
+        <p>You're staking like a true degen crab.<br>Diamond claws only.</p>
+        <button class="celebrate-close" onclick="closeCelebrate()">Nice. 😎</button>
+    </div>
+</div>
+
+<!-- CONFETTI CANVAS -->
+<canvas id="confettiCanvas"></canvas>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+        <div class="hero-text">
+            <div class="hero-badge">🔒 STAKING LIVE ON SOLANA</div>
+            <div class="hero-apy">69% APY</div>
+            <p class="hero-sub">Stake your $CMEM and earn rewards so fat, even other crabs will be jealous. Diamond claws get rewarded.</p>
+            <a href="#stake" class="hero-cta">🦀 Start Staking</a>
+            <div class="hero-stats">
+                <div class="hero-stat-item">
+                    <div class="hero-stat-value" id="heroTotalStaked" style="color:var(--sol-green)">Loading...</div>
+                    <div class="hero-stat-label">Total Staked</div>
+                </div>
+                <div class="hero-stat-item">
+                    <div class="hero-stat-value" style="color:var(--crab)">69%</div>
+                    <div class="hero-stat-label">APY</div>
+                </div>
+                <div class="hero-stat-item">
+                    <div class="hero-stat-value" data-count="30" data-suffix=" days">0</div>
+                    <div class="hero-stat-label">Min Lock</div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-crab">
+            <img src="/images/staking/crab-hero.webp" alt="CMEM Crab - staking mascot">
+        </div>
+    </div>
+    <div class="wave-divider">
+        <svg viewBox="0 0 1440 120" preserveAspectRatio="none">
+            <path d="M0,60 C360,120 720,0 1080,60 C1260,90 1380,60 1440,80 L1440,120 L0,120 Z" fill="var(--ocean)"/>
+        </svg>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" style="background:var(--ocean)">
+    <div class="section-inner">
+        <div class="gradient-line"></div>
+        <h2 class="section-title reveal">How It Works</h2>
+        <p class="section-subtitle reveal">Three steps. Even a crab with claws can do it.</p>
+        <div class="how-cards">
+            <div class="how-card reveal">
+                <div class="how-step">1</div>
+                <div class="how-card-icon">🦀</div>
+                <h3>Connect Wallet</h3>
+                <p>Even crabs have wallets now. Phantom or Solflare — we don't judge. (We judge a little.)</p>
+            </div>
+            <div class="how-card reveal">
+                <div class="how-step">2</div>
+                <div class="how-card-icon">💰</div>
+                <h3>Stake $CMEM</h3>
+                <p>30 days minimum. We're not day-traders, we're crabs. We hold things with an iron claw.</p>
+            </div>
+            <div class="how-card reveal">
+                <div class="how-step">3</div>
+                <div class="how-card-icon">📈</div>
+                <h3>Earn 69% APY</h3>
+                <p>Nice. Your tokens work harder than a crab at an all-you-can-eat buffet.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- LIVE POOL STATS -->
+<section class="stats-section">
+    <div class="section-inner">
+        <div class="gradient-line"></div>
+        <h2 class="section-title reveal">Live Pool Stats</h2>
+        <p class="section-subtitle reveal">Numbers don't lie. Unlike that "guaranteed 1000x" you saw on Twitter.</p>
+        <div class="stats-grid">
+            <div class="stat-card reveal">
+                <div class="stat-icon">🏦</div>
+                <div class="stat-value" style="color:var(--sol-green)">Loading...</div>
+                <div class="stat-label">Total Staked</div>
+            </div>
+            <div class="stat-card reveal">
+                <div class="stat-icon">🔥</div>
+                <div class="stat-value" style="color:var(--crab)">69%</div>
+                <div class="stat-label">Annual Yield</div>
+            </div>
+            <div class="stat-card reveal">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value" style="color:var(--sol-green)">Loading...</div>
+                <div class="stat-label">Active Stakers</div>
+            </div>
+            <div class="stat-card reveal">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-value" id="countdownValue">--</div>
+                <div class="stat-label">Pool Expires</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- STAKING WIDGET -->
+<section id="stake" class="widget-section">
+    <div class="section-inner">
+        <div class="gradient-line"></div>
+        <h2 class="section-title reveal">Stake Your $CMEM</h2>
+        <p class="section-subtitle reveal">Put those tokens to work. They've been sitting in your wallet doing nothing — just like you.</p>
+        <div class="widget-container reveal">
+            <div class="widget">
+                <div class="widget-tabs">
+                    <button class="widget-tab active" onclick="switchTab('stake')">Stake</button>
+                    <button class="widget-tab" onclick="switchTab('unstake')">Unstake</button>
+                </div>
+                <div class="widget-input-group">
+                    <div class="widget-input-label">
+                        <span id="inputLabel">Amount to Stake</span>
+                        <span>Balance: <span id="tokenBalance" class="mono">—</span></span>
+                    </div>
+                    <div class="widget-input-row">
+                        <input type="number" class="widget-input" id="stakeAmount" placeholder="0.00" min="0" step="any" oninput="updateCalc()">
+                        <button class="max-btn" onclick="setMax()">MAX</button>
+                        <div class="token-badge">
+                            <img src="/images/staking/crab-icon.webp" alt="" onerror="this.outerHTML='🦀'">
+                            CMEM
+                        </div>
+                    </div>
+                </div>
+                <div class="widget-info"><span>APY</span><span style="color:var(--sol-green)">69%</span></div>
+                <div class="widget-info"><span>Min Lock Period</span><span>30 days</span></div>
+                <div class="widget-info"><span>Pool Expires</span><span>Jan 27, 2027</span></div>
+                <div class="widget-info"><span>Network</span><span>Solana</span></div>
+                <button class="stake-btn" id="stakeBtn" onclick="handleStake()" disabled>
+                    Connect Wallet to Stake
+                </button>
+                <div class="streamflow-badge">
+                    Powered by <a href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener">Streamflow ↗</a>
+                </div>
+            </div>
+
+            <!-- CALCULATOR -->
+            <div class="calculator reveal">
+                <h4>🧮 Earnings Calculator</h4>
+                <div class="calc-row">
+                    <label>Amount</label>
+                    <input type="range" id="calcAmount" min="1000" max="10000000" value="100000" step="1000" oninput="updateCalcSlider()">
+                    <span class="calc-val" id="calcAmountVal">100,000</span>
+                </div>
+                <div class="calc-row">
+                    <label>Duration</label>
+                    <input type="range" id="calcDays" min="30" max="365" value="90" step="1" oninput="updateCalcSlider()">
+                    <span class="calc-val" id="calcDaysVal">90 days</span>
+                </div>
+                <div class="calc-result">
+                    <div class="label">Estimated Earnings</div>
+                    <div class="big-num" id="calcResult">17,014 CMEM</div>
+                    <div class="label" id="calcDaily" style="margin-top:0.3rem">~189/day</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- WHY STAKE -->
+<section class="why-section">
+    <div class="section-inner">
+        <div class="gradient-line"></div>
+        <h2 class="section-title reveal">Why Stake $CMEM?</h2>
+        <p class="section-subtitle reveal">Glad you asked. Sit down. Let the crab explain.</p>
+        <div class="why-grid reveal">
+            <div class="why-image">
+                <img src="/images/staking/crab-trading.png" alt="Crab at trading desk">
+            </div>
+            <div class="why-text">
+                <h3>Because HODLing Is So 2021</h3>
+                <p>Your tokens are sitting in your wallet collecting digital dust. Meanwhile, staked $CMEM is out there working harder than a crab during happy hour.</p>
+                <ul class="why-list">
+                    <li><strong>69% APY</strong> — Yes, that number. No, it's not a coincidence. We're crabs of culture.</li>
+                    <li><strong>Powered by Streamflow</strong> — Battle-tested staking infrastructure. Not some random contract a crab wrote at 3am.</li>
+                    <li><strong>30-Day Minimum</strong> — We're filtering out paper claws. If you can't commit for a month, this pool isn't for you.</li>
+                    <li><strong>150M Token Pool</strong> — Massive rewards pool. First crabs eat first.</li>
+                    <li><strong>Community Flex</strong> — Climb the leaderboard. Earn badges. Make other crabs jealous.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- LEADERBOARD -->
+<section id="leaderboard">
+    <div class="section-inner">
+        <div class="gradient-line"></div>
+        <h2 class="section-title reveal">Staking Leaderboard</h2>
+        <p class="section-subtitle reveal">The hall of fame for crabs with the biggest claws. 🦀👑</p>
+        <div class="leaderboard-controls reveal">
+            <input type="text" class="lb-search" id="lbSearch" placeholder="🔍 Search by address..." oninput="filterLeaderboard()">
+            <select class="lb-sort" id="lbSort" onchange="sortLeaderboard()">
+                <option value="amount-desc">Amount ↓</option>
+                <option value="amount-asc">Amount ↑</option>
+                <option value="duration-desc">Duration ↓</option>
+                <option value="duration-asc">Duration ↑</option>
+            </select>
+        </div>
+        <div class="lb-table-wrap reveal">
+            <table class="leaderboard-table" id="lbTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortBy('rank')">Rank</th>
+                        <th onclick="sortBy('address')">Address</th>
+                        <th onclick="sortBy('amount')">Amount Staked</th>
+                        <th onclick="sortBy('duration')">Duration</th>
+                        <th>Badge</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="lbBody"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- CONTRACT INFO -->
+<section id="contract" class="contract-section">
+    <div class="section-inner">
+        <div class="gradient-line"></div>
+        <h2 class="section-title reveal">Contract Information</h2>
+        <p class="section-subtitle reveal">Verify everything. Trust, but verify. Actually, just verify.</p>
+        <div class="contract-grid reveal">
+            <div class="contract-card">
+                <h4>Token Contract</h4>
+                <div class="contract-addr">
+                    <code>2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS</code>
+                    <button class="copy-btn" onclick="copyAddr('2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS', this)">Copy</button>
+                </div>
+                <div class="contract-links">
+                    <a href="https://solscan.io/token/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener">Solscan ↗</a>
+                    <a href="https://explorer.solana.com/address/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS" target="_blank" rel="noopener">Explorer ↗</a>
+                    <span class="verified-badge">✓ Verified</span>
+                </div>
+            </div>
+            <div class="contract-card">
+                <h4>Staking Pool (Streamflow)</h4>
+                <div class="contract-addr">
+                    <code>2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg</code>
+                    <button class="copy-btn" onclick="copyAddr('2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg', this)">Copy</button>
+                </div>
+                <div class="contract-links">
+                    <a href="https://solscan.io/account/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener">Solscan ↗</a>
+                    <a href="https://app.streamflow.finance/staking/solana/mainnet/2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg" target="_blank" rel="noopener">Streamflow ↗</a>
+                    <span class="verified-badge">✓ Verified</span>
+                </div>
+            </div>
+            <div class="contract-card">
+                <h4>Pool Parameters</h4>
+                <div style="display:grid;gap:0.5rem;font-size:0.9rem;">
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--white-dim)">Total Rewards</span><span class="mono">150,000,000 CMEM</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--white-dim)">APY</span><span class="mono" style="color:var(--sol-green)">69%</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--white-dim)">Min Stake Duration</span><span class="mono">30 days</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--white-dim)">Pool Expiry</span><span class="mono">January 27, 2027</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--white-dim)">Network</span><span class="mono">Solana Mainnet</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--white-dim)">Platform</span><span class="mono">Streamflow Finance</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+    <div class="section-inner">
+        <div class="gradient-line"></div>
+        <h2 class="section-title reveal">FAQ</h2>
+        <p class="section-subtitle reveal">Questions we get asked by crabs who think they're smarter than us.</p>
+        <div class="faq-list reveal">
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    <span>🦀 Is this safe?</span>
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a"><p>As safe as a crab's shell. The staking pool runs on Streamflow Finance — a battle-tested protocol on Solana. Smart contracts are verified and auditable on-chain. We don't have access to your funds. Your wallet, your keys, your tokens. We just built a really nice page to make staking them feel fancy.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    <span>💰 What's the minimum stake?</span>
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a"><p>The minimum lock period is 30 days. Amount-wise, you can stake any amount of $CMEM you hold. We're not elitist — every crab counts. But seriously, if you're staking 12 tokens… maybe buy more first.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    <span>📅 When do rewards distribute?</span>
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a"><p>Rewards accrue continuously through the Streamflow staking protocol. You can claim earned rewards at any time after your lock period ends. The pool has 150M CMEM allocated for rewards and runs until January 27, 2027.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    <span>⏰ What happens when the pool expires?</span>
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a"><p>The pool expires January 27, 2027. After expiry, no new staking is accepted, but you can still unstake and claim any remaining rewards. Any unclaimed rewards in the pool are handled according to Streamflow's protocol rules. TL;DR: get in early, stay staked, maximize gains.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    <span>🔄 Can I unstake early?</span>
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a"><p>After your 30-day minimum lock period? Yes. Before that? No. We told you — diamond claws only. This isn't a revolving door, it's a crab fortress. Commit or don't. (But seriously, commit.)</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    <span>🤔 Why 69% APY?</span>
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a"><p>Nice. Next question.</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-inner">
+        <div class="footer-links">
+            <a href="https://cmem.ai">Main Site</a>
+            <a href="https://twitter.com/Claude_Memory" target="_blank">Twitter</a>
+            <a href="https://t.me/crabmem" target="_blank">Telegram</a>
+            <a href="https://github.com/thedotmack/crab-mem" target="_blank">GitHub</a>
+            <a href="/bounties">Bounties</a>
+        </div>
+        <p class="footer-tagline">Built by crabs, for crabs. 🦀 Diamond claws since 2026.</p>
+        <p class="footer-addr">$CMEM: 2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS</p>
+    </div>
+</footer>
+
+<script>
+(function() {
+    'use strict';
+
+    // ========== STATE ==========
+    const STATE = {
+        wallet: null,
+        provider: null,
+        publicKey: null,
+        balance: null,
+        tab: 'stake',
+        connected: false,
+    };
+
+    const TOKEN_MINT = '2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS';
+    const POOL_ADDR = '2uBHsavcfVQAgs8nMuMwogaap9BV1MwQuADearz1e6Kg';
+    const STREAMFLOW_URL = 'https://app.streamflow.finance/staking/solana/mainnet/' + POOL_ADDR;
+    const RPC_URL = 'https://api.mainnet-beta.solana.com';
+    const POOL_EXPIRY = new Date('2027-01-26T05:00:00Z');
+
+    // ========== LEADERBOARD DATA (loaded from API) ==========
+    let leaderboardData = [];
+
+    // ========== LIVE DATA FETCH ==========
+    const STAKING_API = '/api/staking';
+    let stakingDataLoaded = false;
+
+    async function fetchStakingData() {
+        try {
+            const res = await fetch(STAKING_API);
+            if (!res.ok) throw new Error('API returned ' + res.status);
+            const data = await res.json();
+            if (data.error) throw new Error(data.message);
+
+            // Update pool stats
+            const totalStaked = data.pool.totalStaked;
+            const stakerCount = data.pool.stakerCount;
+
+            // Update hero pool size
+            const heroPoolEl = document.getElementById('heroTotalStaked');
+            if (heroPoolEl) {
+                heroPoolEl.textContent = formatAbbr(totalStaked);
+            }
+
+            // Update stats section
+            const statValues = document.querySelectorAll('.stat-card .stat-value');
+            statValues.forEach(el => {
+                const label = el.nextElementSibling?.textContent?.trim();
+                if (label === 'Total Staked') {
+                    el.textContent = formatAbbr(totalStaked) + ' CMEM';
+                    el.removeAttribute('data-count');
+                } else if (label === 'Active Stakers') {
+                    el.textContent = stakerCount.toString();
+                    el.removeAttribute('data-count');
+                }
+            });
+
+            // Build leaderboard
+            leaderboardData = data.stakers.map((s, i) => {
+                const rank = i + 1;
+                let badge = '🐐'; // OG for all first stakers
+                if (rank === 1) badge = '👑 ' + badge;
+                if (s.amount >= 500000000) badge = '💎 ' + badge;
+                else if (s.amount >= 100000000) badge = '🦀 ' + badge;
+                return {
+                    rank,
+                    addr: s.address.slice(0, 8) + '...' + s.address.slice(-4),
+                    full: s.address,
+                    amount: Math.round(s.amount),
+                    duration: s.duration,
+                    badge,
+                };
+            });
+            renderLeaderboard(leaderboardData);
+            stakingDataLoaded = true;
+        } catch (err) {
+            console.error('Failed to fetch staking data:', err);
+            if (!stakingDataLoaded) {
+                // Show error state
+                const tbody = document.getElementById('lbBody');
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--white-dim);padding:2rem;">Data unavailable — try refreshing</td></tr>';
+                document.querySelectorAll('.stat-card .stat-value[data-count]').forEach(el => {
+                    el.textContent = '—';
+                    el.removeAttribute('data-count');
+                });
+            }
+        }
+    }
+
+    function formatAbbr(n) {
+        if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+        if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+        if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+        return formatNumber(Math.round(n));
+    }
+
+    // ========== INIT ==========
+    window.addEventListener('DOMContentLoaded', () => {
+        initCounters();
+        initScrollReveal();
+        updateCountdown();
+        setInterval(updateCountdown, 60000);
+        detectWallets();
+        updateCalcSlider();
+        // Load live data
+        fetchStakingData();
+        setInterval(fetchStakingData, 60000);
+    });
+
+    // ========== WALLET ==========
+    function detectWallets() {
+        const pStatus = document.getElementById('phantomStatus');
+        const sStatus = document.getElementById('solflareStatus');
+        if (window.phantom?.solana?.isPhantom) { pStatus.textContent = 'Detected'; }
+        else { pStatus.textContent = 'Not installed'; pStatus.style.color = 'var(--white-dim)'; }
+        if (window.solflare?.isSolflare) { sStatus.textContent = 'Detected'; }
+        else { sStatus.textContent = 'Not installed'; sStatus.style.color = 'var(--white-dim)'; }
+    }
+
+    window.handleWalletClick = function() {
+        if (STATE.connected) {
+            disconnectWallet();
+        } else {
+            document.getElementById('walletModal').classList.add('active');
+            detectWallets();
+        }
+    };
+
+    window.closeWalletModal = function() {
+        document.getElementById('walletModal').classList.remove('active');
+    };
+
+    window.connectWallet = async function(type) {
+        let provider;
+        try {
+            if (type === 'phantom') {
+                provider = window.phantom?.solana;
+                if (!provider?.isPhantom) {
+                    window.open('https://phantom.app/', '_blank');
+                    return;
+                }
+            } else if (type === 'solflare') {
+                provider = window.solflare;
+                if (!provider?.isSolflare) {
+                    window.open('https://solflare.com/', '_blank');
+                    return;
+                }
+            }
+            const resp = await provider.connect();
+            STATE.provider = provider;
+            STATE.publicKey = resp.publicKey.toString();
+            STATE.connected = true;
+            STATE.wallet = type;
+
+            const btn = document.getElementById('walletBtn');
+            btn.textContent = STATE.publicKey.slice(0, 4) + '...' + STATE.publicKey.slice(-4);
+            btn.classList.add('connected');
+
+            const stakeBtn = document.getElementById('stakeBtn');
+            stakeBtn.disabled = false;
+            stakeBtn.textContent = STATE.tab === 'stake' ? '🦀 Stake $CMEM' : '🔓 Unstake $CMEM';
+
+            closeWalletModal();
+            fetchTokenBalance();
+
+            provider.on('accountChanged', (pk) => {
+                if (pk) {
+                    STATE.publicKey = pk.toString();
+                    btn.textContent = STATE.publicKey.slice(0, 4) + '...' + STATE.publicKey.slice(-4);
+                    fetchTokenBalance();
+                } else { disconnectWallet(); }
+            });
+        } catch (e) {
+            console.error('Wallet connect error:', e);
+        }
+    };
+
+    function disconnectWallet() {
+        if (STATE.provider?.disconnect) STATE.provider.disconnect();
+        STATE.connected = false;
+        STATE.publicKey = null;
+        STATE.provider = null;
+        STATE.balance = null;
+        STATE.wallet = null;
+        const btn = document.getElementById('walletBtn');
+        btn.textContent = 'Connect Wallet';
+        btn.classList.remove('connected');
+        document.getElementById('tokenBalance').textContent = '—';
+        const stakeBtn = document.getElementById('stakeBtn');
+        stakeBtn.disabled = true;
+        stakeBtn.textContent = 'Connect Wallet to Stake';
+    }
+
+    async function fetchTokenBalance() {
+        if (!STATE.publicKey) return;
+        try {
+            const connection = new solanaWeb3.Connection(RPC_URL);
+            const pubkey = new solanaWeb3.PublicKey(STATE.publicKey);
+            const mint = new solanaWeb3.PublicKey(TOKEN_MINT);
+            const tokenAccounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint });
+            let total = 0;
+            for (const acc of tokenAccounts.value) {
+                total += acc.account.data.parsed.info.tokenAmount.uiAmount || 0;
+            }
+            STATE.balance = total;
+            document.getElementById('tokenBalance').textContent = formatNumber(total) + ' CMEM';
+        } catch (e) {
+            console.error('Balance fetch error:', e);
+            document.getElementById('tokenBalance').textContent = 'Error';
+        }
+    }
+
+    // ========== STAKING WIDGET ==========
+    window.switchTab = function(tab) {
+        STATE.tab = tab;
+        document.querySelectorAll('.widget-tab').forEach((t, i) => {
+            t.classList.toggle('active', (i === 0 && tab === 'stake') || (i === 1 && tab === 'unstake'));
+        });
+        document.getElementById('inputLabel').textContent = tab === 'stake' ? 'Amount to Stake' : 'Amount to Unstake';
+        const stakeBtn = document.getElementById('stakeBtn');
+        if (STATE.connected) {
+            stakeBtn.textContent = tab === 'stake' ? '🦀 Stake $CMEM' : '🔓 Unstake $CMEM';
+            stakeBtn.classList.toggle('unstake', tab === 'unstake');
+        }
+    };
+
+    window.setMax = function() {
+        if (STATE.balance !== null) {
+            document.getElementById('stakeAmount').value = STATE.balance;
+            updateCalc();
+        }
+    };
+
+    window.handleStake = function() {
+        const amount = parseFloat(document.getElementById('stakeAmount').value);
+        if (!STATE.connected) { handleWalletClick(); return; }
+        if (!amount || amount <= 0) { alert('Enter an amount, you silly crab.'); return; }
+
+        if (STATE.tab === 'stake') {
+            console.log('[CMEM Staking] Stake action:', { amount, wallet: STATE.publicKey });
+            // Redirect to Streamflow for actual staking
+            window.open(STREAMFLOW_URL, '_blank');
+            showCelebration();
+        } else {
+            console.log('[CMEM Staking] Unstake action:', { amount, wallet: STATE.publicKey });
+            window.open(STREAMFLOW_URL, '_blank');
+        }
+    };
+
+    function showCelebration() {
+        document.getElementById('celebrateOverlay').classList.add('active');
+        fireConfetti();
+    }
+
+    window.closeCelebrate = function() {
+        document.getElementById('celebrateOverlay').classList.remove('active');
+    };
+
+    window.updateCalc = function() {
+        // Sync widget input to calculator
+        const amount = parseFloat(document.getElementById('stakeAmount').value) || 0;
+        if (amount > 0) {
+            const days = parseInt(document.getElementById('calcDays').value) || 90;
+            const earnings = amount * 0.69 / 365 * days;
+            const daily = amount * 0.69 / 365;
+            document.getElementById('calcResult').textContent = formatNumber(Math.round(earnings)) + ' CMEM';
+            document.getElementById('calcDaily').textContent = '~' + formatNumber(Math.round(daily)) + '/day';
+        }
+    };
+
+    window.updateCalcSlider = function() {
+        const amount = parseInt(document.getElementById('calcAmount').value);
+        const days = parseInt(document.getElementById('calcDays').value);
+        document.getElementById('calcAmountVal').textContent = formatNumber(amount);
+        document.getElementById('calcDaysVal').textContent = days + ' days';
+        const earnings = amount * 0.69 / 365 * days;
+        const daily = amount * 0.69 / 365;
+        document.getElementById('calcResult').textContent = formatNumber(Math.round(earnings)) + ' CMEM';
+        document.getElementById('calcDaily').textContent = '~' + formatNumber(Math.round(daily)) + '/day';
+    };
+
+    // ========== LEADERBOARD ==========
+    function renderLeaderboard(data) {
+        const tbody = document.getElementById('lbBody');
+        tbody.textContent = '';
+        if (data.length === 0 && !stakingDataLoaded) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--white-dim);padding:2rem;">Loading stakers...</td></tr>';
+            return;
+        }
+        data.forEach(item => {
+            const tr = document.createElement('tr');
+            const rankClass = item.rank <= 3 ? ' rank-' + item.rank : '';
+            const solscanLink = item.full ? `https://solscan.io/account/${item.full}` : '#';
+            tr.innerHTML = `
+                <td class="rank-cell${rankClass}">#${item.rank}</td>
+                <td class="addr-cell"><a href="${solscanLink}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" title="${item.full || ''}">${item.addr}</a></td>
+                <td class="amount-cell">${formatNumber(item.amount)}</td>
+                <td>${item.duration}d</td>
+                <td class="badge-cell">${item.badge}</td>
+                <td><button class="share-btn" onclick="shareTweet(${item.rank}, '${item.addr}', ${item.amount})">𝕏 Share</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    window.shareTweet = function(rank, addr, amount) {
+        const text = encodeURIComponent(`I'm ranked #${rank} on the $CMEM staking leaderboard with ${formatNumber(amount)} CMEM staked! 🦀\n\n69% APY — diamond claws only.\n\nhttps://staking.cmem.ai`);
+        window.open('https://twitter.com/intent/tweet?text=' + text, '_blank');
+    };
+
+    window.filterLeaderboard = function() {
+        const q = document.getElementById('lbSearch').value.toLowerCase();
+        const filtered = leaderboardData.filter(d => d.addr.toLowerCase().includes(q) || d.full.toLowerCase().includes(q));
+        renderLeaderboard(filtered);
+    };
+
+    window.sortLeaderboard = function() {
+        const val = document.getElementById('lbSort').value;
+        const sorted = [...leaderboardData];
+        const [key, dir] = val.split('-');
+        sorted.sort((a, b) => dir === 'desc' ? b[key] - a[key] : a[key] - b[key]);
+        sorted.forEach((item, i) => item.rank = i + 1);
+        renderLeaderboard(sorted);
+    };
+
+    window.sortBy = function(col) {
+        const select = document.getElementById('lbSort');
+        if (col === 'amount') select.value = select.value === 'amount-desc' ? 'amount-asc' : 'amount-desc';
+        if (col === 'duration') select.value = select.value === 'duration-desc' ? 'duration-asc' : 'duration-desc';
+        sortLeaderboard();
+    };
+
+    // ========== COUNTERS ==========
+    function initCounters() {
+        const counters = document.querySelectorAll('[data-count]');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !entry.target.dataset.animated) {
+                    entry.target.dataset.animated = 'true';
+                    animateCounter(entry.target);
+                }
+            });
+        }, { threshold: 0.3 });
+        counters.forEach(c => observer.observe(c));
+    }
+
+    function animateCounter(el) {
+        const target = parseInt(el.dataset.count);
+        const suffix = el.dataset.suffix || '';
+        const fmt = el.dataset.format;
+        const duration = 2000;
+        const start = performance.now();
+
+        function update(now) {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = Math.round(target * eased);
+
+            if (fmt === 'abbr') {
+                el.textContent = current >= 1000000 ? (current / 1000000).toFixed(0) + 'M' + suffix : formatNumber(current) + suffix;
+            } else {
+                el.textContent = formatNumber(current) + suffix;
+            }
+
+            if (progress < 1) requestAnimationFrame(update);
+        }
+        requestAnimationFrame(update);
+    }
+
+    // ========== COUNTDOWN ==========
+    function updateCountdown() {
+        const now = new Date();
+        const diff = POOL_EXPIRY - now;
+        if (diff <= 0) { document.getElementById('countdownValue').textContent = 'Expired'; return; }
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const months = Math.floor(days / 30);
+        document.getElementById('countdownValue').textContent = months > 0 ? months + 'mo ' + (days % 30) + 'd' : days + ' days';
+    }
+
+    // ========== SCROLL REVEAL ==========
+    function initScrollReveal() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    }
+
+    // ========== FAQ ==========
+    window.toggleFaq = function(el) {
+        const item = el.closest('.faq-item');
+        const wasOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+        if (!wasOpen) item.classList.add('open');
+    };
+
+    // ========== COPY ==========
+    window.copyAddr = function(addr, btn) {
+        navigator.clipboard.writeText(addr).then(() => {
+            const orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            btn.style.color = 'var(--sol-green)';
+            setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
+        });
+    };
+
+    // ========== CONFETTI ==========
+    function fireConfetti() {
+        const canvas = document.getElementById('confettiCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const colors = ['#ff6b35', '#00ffa3', '#ffd700', '#ff4757', '#7c5cfc', '#00d2ff'];
+        const particles = [];
+
+        for (let i = 0; i < 150; i++) {
+            particles.push({
+                x: canvas.width * Math.random(),
+                y: -10 - Math.random() * 200,
+                w: 4 + Math.random() * 6,
+                h: 4 + Math.random() * 6,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                vx: (Math.random() - 0.5) * 4,
+                vy: 2 + Math.random() * 4,
+                rot: Math.random() * Math.PI * 2,
+                rv: (Math.random() - 0.5) * 0.2,
+                life: 1,
+            });
+        }
+
+        let frame = 0;
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let alive = 0;
+            particles.forEach(p => {
+                if (p.life <= 0) return;
+                alive++;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.05;
+                p.rot += p.rv;
+                p.life -= 0.005;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+            });
+            frame++;
+            if (alive > 0 && frame < 300) requestAnimationFrame(draw);
+            else ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        requestAnimationFrame(draw);
+    }
+
+    // ========== UTILS ==========
+    function formatNumber(n) {
+        return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+})();
+</script>
+</body>
+</html>
